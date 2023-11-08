@@ -211,33 +211,35 @@ func (d *Driver) invokeFunction(metadata *InvocationMetadata, iatIndex int) {
 	defer metadata.AnnounceDoneWG.Done()
 
 	var success bool
-	node := metadata.RootFunction.Front()
 	var record *mc.ExecutionRecord
 	var runtimeSpecifications *common.RuntimeSpecification
+
+	node := metadata.RootFunction.Front()
 	for node != nil {
 		function := node.Value.(*common.Function)
 		runtimeSpecifications = &function.Specification.RuntimeSpecification[iatIndex]
+
 		switch d.Configuration.LoaderConfiguration.Platform {
-		case "Knative":
+		case "Knative", "Knative-RPS":
 			success, record = InvokeGRPC(
 				function,
 				runtimeSpecifications,
 				d.Configuration.LoaderConfiguration,
 			)
-		case "OpenWhisk":
+		case "OpenWhisk", "OpenWhisk-RPS":
 			success, record = InvokeOpenWhisk(
 				function,
 				runtimeSpecifications,
 				metadata.AnnounceDoneExe,
 				metadata.ReadOpenWhiskMetadata,
 			)
-		case "AWSLambda":
+		case "AWSLambda", "AWSLambda-RPS":
 			success, record = InvokeAWSLambda(
 				function,
 				runtimeSpecifications,
 				metadata.AnnounceDoneExe,
 			)
-		case "Dirigent":
+		case "Dirigent", "Dirigent-RPS":
 			success, record = InvokeDirigent(
 				function,
 				runtimeSpecifications,
@@ -256,6 +258,7 @@ func (d *Driver) invokeFunction(metadata *InvocationMetadata, iatIndex int) {
 		}
 		node = node.Next()
 	}
+
 	if success {
 		atomic.AddInt64(metadata.SuccessCount, 1)
 	} else {
@@ -326,6 +329,7 @@ func (d *Driver) functionsDriver(list *list.List, announceFunctionDone *sync.Wai
 
 		offset := false
 		if IAT[iatIndex] < 0 {
+			// do not fire an invocation for offset invocations
 			IAT[iatIndex] *= -1
 			offset = true
 		}
@@ -343,6 +347,8 @@ func (d *Driver) functionsDriver(list *list.List, announceFunctionDone *sync.Wai
 		if function.InvocationStats.Invocations[minuteIndex] == invocationIndex || hasMinuteExpired(startOfMinute) {
 			readyToBreak := d.proceedToNextMinute(function, &minuteIndex, &invocationIndex, &startOfMinute,
 				false, &currentPhase, failedInvocationByMinute, &previousIATSum)
+
+			// TODO: what if minute expired -> rewind iatIndex
 
 			if readyToBreak {
 				break
