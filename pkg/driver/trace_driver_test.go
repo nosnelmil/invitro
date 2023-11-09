@@ -43,6 +43,13 @@ import (
 func createTestDriver() *Driver {
 	cfg := createFakeLoaderConfiguration()
 
+	invocationStats := []int{
+		5, 5, 5, 5, 5,
+		5, 5, 5, 5, 5,
+		5, 5, 5, 5, 5,
+		5, 5, 5, 5, 5,
+	}
+
 	driver := NewDriver(&DriverConfiguration{
 		LoaderConfiguration: cfg,
 		IATDistribution:     common.Equidistant,
@@ -52,12 +59,7 @@ func createTestDriver() *Driver {
 			{
 				Name: "test-function",
 				InvocationStats: &common.FunctionInvocationStats{
-					Invocations: []int{
-						5, 5, 5, 5, 5,
-						5, 5, 5, 5, 5,
-						5, 5, 5, 5, 5,
-						5, 5, 5, 5, 5,
-					},
+					Invocations: invocationStats,
 				},
 				RuntimeStats: &common.FunctionRuntimeStats{
 					Average:       50,
@@ -85,7 +87,7 @@ func createTestDriver() *Driver {
 					Percentile100: 10000,
 				},
 				Specification: &common.FunctionSpecification{
-					RuntimeSpecification: make([][]common.RuntimeSpecification, 1),
+					PerMinuteCount: invocationStats,
 				},
 			},
 		},
@@ -137,10 +139,7 @@ func TestInvokeFunctionFromDriver(t *testing.T) {
 			list := list.New()
 			list.PushBack(testDriver.Configuration.Functions[0])
 			function := list.Front().Value.(*common.Function)
-			for i := 0; i < len(function.Specification.RuntimeSpecification); i++ {
-				function.Specification.RuntimeSpecification[i] = make([]common.RuntimeSpecification, 3)
-			}
-			function.Specification.RuntimeSpecification[0][2] = common.RuntimeSpecification{
+			function.Specification.RuntimeSpecification[0] = common.RuntimeSpecification{
 				Runtime: 1000,
 				Memory:  128,
 			}
@@ -148,7 +147,7 @@ func TestInvokeFunctionFromDriver(t *testing.T) {
 				RootFunction:        list,
 				Phase:               common.ExecutionPhase,
 				MinuteIndex:         0,
-				InvocationIndex:     2,
+				InvocationIndex:     0,
 				SuccessCount:        &successCount,
 				FailedCount:         &failureCount,
 				FailedCountByMinute: failureCountByMinute,
@@ -157,7 +156,7 @@ func TestInvokeFunctionFromDriver(t *testing.T) {
 			}
 
 			announceDone.Add(1)
-			testDriver.invokeFunction(metadata)
+			testDriver.invokeFunction(metadata, 0)
 
 			switch test.forceFail {
 			case true:
@@ -196,10 +195,7 @@ func TestDAGInvocation(t *testing.T) {
 	function.Endpoint = fmt.Sprintf("%s:%d", address, port)
 
 	go standard.StartGRPCServer(address, port, standard.TraceFunction, "")
-	for i := 0; i < len(function.Specification.RuntimeSpecification); i++ {
-		function.Specification.RuntimeSpecification[i] = make([]common.RuntimeSpecification, 3)
-	}
-	function.Specification.RuntimeSpecification[0][2] = common.RuntimeSpecification{
+	function.Specification.RuntimeSpecification[0] = common.RuntimeSpecification{
 		Runtime: 1000,
 		Memory:  128,
 	}
@@ -214,7 +210,7 @@ func TestDAGInvocation(t *testing.T) {
 		RootFunction:        list,
 		Phase:               common.ExecutionPhase,
 		MinuteIndex:         0,
-		InvocationIndex:     2,
+		InvocationIndex:     0,
 		SuccessCount:        &successCount,
 		FailedCount:         &failureCount,
 		FailedCountByMinute: failureCountByMinute,
@@ -223,7 +219,7 @@ func TestDAGInvocation(t *testing.T) {
 	}
 
 	announceDone.Add(1)
-	testDriver.invokeFunction(metadata)
+	testDriver.invokeFunction(metadata, 0)
 	if !(successCount == 1 && failureCount == 0) {
 		t.Error("The DAG invocation has failed.")
 	}
@@ -458,6 +454,9 @@ func TestProceedToNextMinute(t *testing.T) {
 		Name: "test-function",
 		InvocationStats: &common.FunctionInvocationStats{
 			Invocations: []int{100, 100, 100, 100, 100},
+		},
+		Specification: &common.FunctionSpecification{
+			PerMinuteCount: []int{100, 100, 100, 100, 100},
 		},
 	}
 
