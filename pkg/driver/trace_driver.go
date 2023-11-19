@@ -30,6 +30,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -62,6 +64,7 @@ type DriverConfiguration struct {
 type Driver struct {
 	Configuration          *DriverConfiguration
 	SpecificationGenerator *generator.SpecificationGenerator
+	HTTPClient             *http.Client
 }
 
 func NewDriver(driverConfig *DriverConfiguration) *Driver {
@@ -108,6 +111,25 @@ func DAGCreation(functions []*common.Function) *list.List {
 		linkedList.PushBack(function)
 	}
 	return linkedList
+}
+
+func (d *Driver) GetHTTPClient() *http.Client {
+	if d.HTTPClient == nil {
+		d.HTTPClient = &http.Client{
+			Timeout: time.Duration(d.Configuration.LoaderConfiguration.GRPCFunctionTimeoutSeconds) * time.Second,
+			Transport: &http.Transport{
+				DialContext: (&net.Dialer{
+					Timeout: 10 * time.Second,
+				}).DialContext,
+				DisableCompression:  true,
+				IdleConnTimeout:     60 * time.Second,
+				MaxIdleConns:        3000,
+				MaxIdleConnsPerHost: 3000,
+			},
+		}
+	}
+
+	return d.HTTPClient
 }
 
 /////////////////////////////////////////
@@ -244,7 +266,7 @@ func (d *Driver) invokeFunction(metadata *InvocationMetadata, iatIndex int) {
 			success, record = InvokeDirigent(
 				function,
 				runtimeSpecifications,
-				d.Configuration.LoaderConfiguration,
+				d.GetHTTPClient(),
 			)
 		default:
 			log.Fatal("Unsupported platform.")
@@ -258,13 +280,13 @@ func (d *Driver) invokeFunction(metadata *InvocationMetadata, iatIndex int) {
 			break
 		}
 		node = node.Next()
-	}
 
-	if success {
-		atomic.AddInt64(metadata.SuccessCount, 1)
-	} else {
-		atomic.AddInt64(metadata.FailedCount, 1)
-		atomic.AddInt64(&metadata.FailedCountByMinute[metadata.MinuteIndex], 1)
+		if success {
+			atomic.AddInt64(metadata.SuccessCount, 1)
+		} else {
+			atomic.AddInt64(metadata.FailedCount, 1)
+			atomic.AddInt64(&metadata.FailedCountByMinute[metadata.MinuteIndex], 1)
+		}
 	}
 }
 
