@@ -277,16 +277,15 @@ func (d *Driver) invokeFunction(metadata *InvocationMetadata, iatIndex int) {
 
 		if !success {
 			log.Debugf("Invocation failed at minute: %d for %s", metadata.MinuteIndex, function.Name)
-			break
-		}
-		node = node.Next()
 
-		if success {
-			atomic.AddInt64(metadata.SuccessCount, 1)
-		} else {
 			atomic.AddInt64(metadata.FailedCount, 1)
 			atomic.AddInt64(&metadata.FailedCountByMinute[metadata.MinuteIndex], 1)
+
+			break
 		}
+
+		node = node.Next()
+		atomic.AddInt64(metadata.SuccessCount, 1)
 	}
 }
 
@@ -710,7 +709,7 @@ func (d *Driver) RunExperiment(skipIATGeneration bool, readIATFromFIle bool) {
 		DeployFunctionsOpenWhisk(d.Configuration.Functions)
 	case "AWSLambda", "AWSLambda-RPS":
 		DeployFunctionsAWSLambda(d.Configuration.Functions)
-	case "Dirigent", "Dirigent-RPS":
+	case "Dirigent", "Dirigent-RPS", "Dirigent-Dandelion", "Dirigent-Dandelion-RPS":
 		DeployDirigent(d.Configuration.LoaderConfiguration.DirigentControlPlaneIP, d.Configuration.Functions)
 		go scheduleFailure(d.Configuration.LoaderConfiguration)
 	default:
