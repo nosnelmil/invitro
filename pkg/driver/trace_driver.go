@@ -711,7 +711,18 @@ func (d *Driver) internalRun(skipIATGeneration bool, readIATFromFile bool) {
 }
 
 func (d *Driver) writeAsyncRecordsToLog(logCh chan interface{}) {
-	client := http.Client{Timeout: 2 * time.Second}
+	client := http.Client{
+		Timeout: 2 * time.Second,
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout: 10 * time.Second,
+			}).DialContext,
+			DisableCompression:  true,
+			IdleConnTimeout:     60 * time.Second,
+			MaxIdleConns:        3000,
+			MaxIdleConnsPerHost: 3000,
+		},
+	}
 
 	const batchSize = 50
 	currentBatch := 0
@@ -733,6 +744,8 @@ func (d *Driver) writeAsyncRecordsToLog(logCh chan interface{}) {
 			go func() {
 				defer wg.Done()
 
+				start := time.Now()
+
 				record := d.AsyncRecords.Dequeue()
 				response, e2e := d.getAsyncResponseData(
 					&client,
@@ -740,7 +753,6 @@ func (d *Driver) writeAsyncRecordsToLog(logCh chan interface{}) {
 					record.AsyncResponseGUID,
 				)
 
-				record.ResponseTime = int64(e2e)
 				if string(response) != "" {
 					err := deserializeDirigentResponse(response, record)
 					if err != nil {
@@ -750,6 +762,10 @@ func (d *Driver) writeAsyncRecordsToLog(logCh chan interface{}) {
 					record.FunctionTimeout = true
 					record.AsyncResponseGUID = ""
 				}
+
+				// loader send request + request e2e + loader get response
+				record.ResponseTime += int64(e2e)
+				record.ResponseTime += time.Since(start).Microseconds()
 
 				logCh <- record
 			}()
@@ -779,8 +795,8 @@ func (d *Driver) getAsyncResponseData(client *http.Client, endpoint string, guid
 		return []byte{}, 0
 	}
 
-	body, err := io.ReadAll(resp.Body)
 	defer handleBodyClosing(resp)
+	body, err := io.ReadAll(resp.Body)
 
 	hdr := resp.Header.Get("Duration-Microseconds")
 	e2e := 0
