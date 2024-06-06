@@ -32,6 +32,9 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"github.com/vhive-serverless/loader/pkg/driver/clients"
+	"github.com/vhive-serverless/loader/pkg/driver/deployment"
+	"github.com/vhive-serverless/loader/pkg/driver/failure"
 	"golang.org/x/net/http2"
 	"io"
 	"math"
@@ -119,27 +122,40 @@ func DAGCreation(functions []*common.Function) *list.List {
 	return linkedList
 }
 
+func (d *Driver) getHttp1Transport() *http.Transport {
+	return &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout: time.Duration(d.Configuration.LoaderConfiguration.GRPCConnectionTimeoutSeconds) * time.Second,
+		}).DialContext,
+		IdleConnTimeout:     5 * time.Second,
+		MaxConnsPerHost:     10,
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 10,
+	}
+}
+
+func (d *Driver) getHttp2Transport() *http2.Transport {
+	return &http2.Transport{
+		AllowHTTP: true,
+		DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
+			return net.Dial(network, addr)
+		},
+	}
+}
+
 func (d *Driver) GetHTTPClient() *http.Client {
 	if d.HTTPClient == nil {
 		d.HTTPClient = &http.Client{
 			Timeout: time.Duration(d.Configuration.LoaderConfiguration.GRPCFunctionTimeoutSeconds) * time.Second,
-			// HTTP/2
-			Transport: &http2.Transport{
-				AllowHTTP: true,
-				DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
-					return net.Dial(network, addr)
-				},
-			},
-			// HTTP/1.1
-			/*Transport: &http.Transport{
-				DialContext: (&net.Dialer{
-					Timeout: 10 * time.Second,
-				}).DialContext,
-				DisableCompression:  true,
-				IdleConnTimeout:     60 * time.Second,
-				MaxIdleConns:        3000,
-				MaxIdleConnsPerHost: 3000,
-			},*/
+		}
+
+		switch d.Configuration.LoaderConfiguration.InvokeProtocol {
+		case "http1":
+			d.HTTPClient.Transport = d.getHttp1Transport()
+		case "http2":
+			d.HTTPClient.Transport = d.getHttp2Transport()
+		default:
+			log.Errorf("Invalid invoke protocol in the configuration file.")
 		}
 	}
 
@@ -258,11 +274,20 @@ func (d *Driver) invokeFunction(metadata *InvocationMetadata, iatIndex int) {
 
 		switch d.Configuration.LoaderConfiguration.Platform {
 		case "Knative", "Knative-RPS":
-			success, record = InvokeGRPC(
-				function,
-				runtimeSpecifications,
-				d.Configuration.LoaderConfiguration,
-			)
+			if d.Configuration.LoaderConfiguration.InvokeProtocol == "grpc" {
+				success, record = clients.InvokeGRPC(
+					metadata.Function,
+					metadata.RuntimeSpecifications,
+					d.Configuration.LoaderConfiguration,
+				)
+			} else {
+				success, record = clients.InvokeDirigent(
+					metadata.Function,
+					metadata.RuntimeSpecifications,
+					d.GetHTTPClient(),
+					d.Configuration.LoaderConfiguration,
+				)
+			}
 		case "OpenWhisk", "OpenWhisk-RPS":
 			success, record = InvokeOpenWhisk(
 				function,
@@ -277,9 +302,24 @@ func (d *Driver) invokeFunction(metadata *InvocationMetadata, iatIndex int) {
 				metadata.AnnounceDoneExe,
 			)
 		case "Dirigent", "Dirigent-RPS":
-			success, record = InvokeDirigent(
-				function,
-				runtimeSpecifications,
+			if d.Configuration.LoaderConfiguration.InvokeProtocol == "grpc" {
+				success, record = clients.InvokeGRPC(
+					metadata.Function,
+					metadata.RuntimeSpecifications,
+					d.Configuration.LoaderConfiguration,
+				)
+			} else {
+				success, record = clients.InvokeDirigent(
+					metadata.Function,
+					metadata.RuntimeSpecifications,
+					d.GetHTTPClient(),
+					d.Configuration.LoaderConfiguration,
+				)
+			}
+		case "Dirigent-Dandelion", "Dirigent-Dandelion-RPS":
+			success, record = clients.InvokeDirigent(
+				metadata.Function,
+				metadata.RuntimeSpecifications,
 				d.GetHTTPClient(),
 				d.Configuration.LoaderConfiguration,
 			)
@@ -770,7 +810,7 @@ func (d *Driver) writeAsyncRecordsToLog(logCh chan interface{}) {
 				)
 
 				if string(response) != "" {
-					err := deserializeDirigentResponse(response, record)
+					err := clients.DeserializeDirigentResponse(response, record)
 					if err != nil {
 						log.Errorf("Failed to deserialize Dirigent response - %v - %v", string(response), err)
 					}
@@ -815,7 +855,7 @@ func (d *Driver) getAsyncResponseData(client *http.Client, endpoint string, guid
 		return []byte{}, 0
 	}
 
-	defer handleBodyClosing(resp)
+	defer clients.HandleBodyClosing(resp)
 	body, err := io.ReadAll(resp.Body)
 
 	hdr := resp.Header.Get("Duration-Microseconds")
@@ -840,19 +880,19 @@ func (d *Driver) RunExperiment(skipIATGeneration bool, readIATFromFIle bool) {
 
 	switch d.Configuration.LoaderConfiguration.Platform {
 	case "Knative", "Knative-RPS":
-		DeployFunctions(d.Configuration.Functions,
+		deployment.DeployKnative(d.Configuration.Functions,
 			d.Configuration.YAMLPath,
 			d.Configuration.LoaderConfiguration.IsPartiallyPanic,
 			d.Configuration.LoaderConfiguration.EndpointPort,
 			d.Configuration.LoaderConfiguration.AutoscalingMetric)
-		go scheduleFailure(d.Configuration.LoaderConfiguration)
+		go failure.ScheduleFailure(d.Configuration.LoaderConfiguration)
 	case "OpenWhisk", "OpenWhisk-RPS":
-		DeployFunctionsOpenWhisk(d.Configuration.Functions)
+		deployment.DeployFunctionsOpenWhisk(d.Configuration.Functions)
 	case "AWSLambda", "AWSLambda-RPS":
-		DeployFunctionsAWSLambda(d.Configuration.Functions)
+		deployment.DeployFunctionsAWSLambda(d.Configuration.Functions)
 	case "Dirigent", "Dirigent-RPS", "Dirigent-Dandelion", "Dirigent-Dandelion-RPS":
-		DeployDirigent(d.Configuration.LoaderConfiguration.DirigentControlPlaneIP, d.Configuration.Functions)
-		go scheduleFailure(d.Configuration.LoaderConfiguration)
+		deployment.DeployDirigent(d.Configuration.LoaderConfiguration.DirigentControlPlaneIP, d.Configuration.Functions)
+		go failure.ScheduleFailure(d.Configuration.LoaderConfiguration)
 	default:
 		log.Fatal("Unsupported platform.")
 	}
@@ -862,10 +902,14 @@ func (d *Driver) RunExperiment(skipIATGeneration bool, readIATFromFIle bool) {
 
 	// Clean up
 	if d.Configuration.LoaderConfiguration.Platform == "Knative" {
-		CleanKnative()
+		deployment.CleanKnative()
 	} else if d.Configuration.LoaderConfiguration.Platform == "OpenWhisk" {
-		CleanOpenWhisk(d.Configuration.Functions)
+		deployment.CleanOpenWhisk(d.Configuration.Functions)
 	} else if d.Configuration.LoaderConfiguration.Platform == "AWSLambda" {
+<<<<<<< HEAD
 		CleanAWSLambda(d.Configuration.Functions)
+=======
+		deployment.CleanAWSLambda()
+>>>>>>> e6d3119 (Code reorganization and introduction of HTTP version in config)
 	}
 }

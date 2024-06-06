@@ -27,6 +27,7 @@ package driver
 import (
 	"container/list"
 	"fmt"
+	"github.com/vhive-serverless/loader/pkg/driver/clients"
 	"log"
 	"os"
 	"sync"
@@ -41,7 +42,7 @@ import (
 )
 
 func createTestDriver() *Driver {
-	cfg := createFakeLoaderConfiguration()
+	cfg := clients.createFakeLoaderConfiguration()
 
 	invocationStats := []int{
 		5, 5, 5, 5, 5,
