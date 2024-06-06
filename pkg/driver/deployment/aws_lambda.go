@@ -10,9 +10,23 @@ import (
 	"sync/atomic"
 )
 
-// DeployFunctionsAWSLambda deploys functions to AWS Lambda using the Serverless.com framework, with additional dependencies on AWS CLI, Docker
-func DeployFunctionsAWSLambda(functions []*common.Function) {
-	const provider = "aws"
+type AWSLambdaDeployer struct {
+	FunctionDeployer
+}
+
+type AWSLambdaDeploymentConfiguration struct {
+}
+
+func (*AWSLambdaDeployer) Deploy(functions []*common.Function, _ interface{}) {
+	internalAWSDeployment(functions)
+}
+
+func (*AWSLambdaDeployer) Clean() {
+	CleanServerless(0)
+}
+
+func internalAWSDeployment(functions []*common.Function) {
+	provider := "aws"
 
 	// Check if all required dependencies are installed, verify that AWS account is clean and ready for deployment
 	awsAccountId, functionGroups := initAWSLambda(functions, provider)
@@ -107,6 +121,7 @@ func cleanAWSElasticContainerRegistry() {
 		}
 	}
 }
+<<<<<<< HEAD
 
 // cleanAWSCloudWatchLogGroups cleans up the AWS CloudWatch log groups by deleting all log groups with the prefix "/aws/lambda/trace-func-"
 func cleanAWSCloudWatchLogGroups() {
@@ -259,3 +274,5 @@ func createSlsConfigFiles(functionGroups [][]*common.Function, provider string, 
 		serverless.CreateServerlessConfigFile(i)
 	}
 }
+=======
+>>>>>>> e423b32 (Per-system deployment interface)
