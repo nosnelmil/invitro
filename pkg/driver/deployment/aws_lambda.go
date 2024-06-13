@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"github.com/vhive-serverless/loader/pkg/config"
 )
 
 type awsLambdaDeployer struct{}
@@ -15,8 +16,12 @@ type awsLambdaDeployer struct{}
 type awsLambdaDeploymentConfiguration struct {
 }
 
-func (*awsLambdaDeployer) Deploy(functions []*common.Function, _ interface{}) {
-	internalAWSDeployment(functions)
+func newAWSLambdaDeployerConfiguration(_ *config.Configuration) awsLambdaDeploymentConfiguration {
+	return awsLambdaDeploymentConfiguration{}
+}
+
+func (*awsLambdaDeployer) Deploy(cfg *config.Configuration) {
+	internalAWSDeployment(cfg.Functions)
 }
 
 func (*awsLambdaDeployer) Clean() {

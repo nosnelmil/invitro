@@ -74,6 +74,7 @@ func NewDriver(driverConfig *config.Configuration) *Driver {
 		d.HTTPClient.Transport = d.getHttp1Transport()
 	case "http2":
 		d.HTTPClient.Transport = d.getHttp2Transport()
+	case "grpc":
 	default:
 		log.Errorf("Invalid invoke protocol in the configuration file.")
 	}
@@ -148,7 +149,7 @@ type InvocationMetadata struct {
 	FailedCount         *int64
 	FailedCountByMinute []int64
 
-	RecordOutputChannel   chan interface{}
+	RecordOutputChannel   chan *mc.ExecutionRecord
 	AnnounceDoneWG        *sync.WaitGroup
 	AnnounceDoneExe       *sync.WaitGroup
 	ReadOpenWhiskMetadata *sync.Mutex
@@ -240,7 +241,7 @@ func (d *Driver) invokeFunction(metadata *InvocationMetadata, iatIndex int) {
 		record.Phase = int(metadata.Phase)
 		record.InvocationID = composeInvocationID(d.Configuration.TraceGranularity, metadata.MinuteIndex, metadata.InvocationIndex)
 
-		if !d.Configuration.LoaderConfiguration.AsyncMode || record.AsyncResponseGUID == "" {
+		if !d.Configuration.LoaderConfiguration.AsyncMode || record.AsyncResponseID == "" {
 			metadata.RecordOutputChannel <- record
 		} else {
 			record.TimeToSubmitMs = record.ResponseTime
@@ -263,7 +264,7 @@ func (d *Driver) invokeFunction(metadata *InvocationMetadata, iatIndex int) {
 
 func (d *Driver) functionsDriver(list *list.List, announceFunctionDone *sync.WaitGroup,
 	addInvocationsToGroup *sync.WaitGroup, readOpenWhiskMetadata *sync.Mutex, totalSuccessful *int64,
-	totalFailed *int64, totalIssued *int64, recordOutputChannel chan interface{}) {
+	totalFailed *int64, totalIssued *int64, recordOutputChannel chan *mc.ExecutionRecord) {
 
 	function := list.Front().Value.(*common.Function)
 	numberOfInvocations := 0
@@ -359,10 +360,12 @@ func (d *Driver) functionsDriver(list *list.List, announceFunctionDone *sync.Wai
 			// To be used from within the Golang testing framework
 			log.Debugf("Test mode invocation fired.\n")
 
-			recordOutputChannel <- &mc.ExecutionRecordBase{
-				Phase:        int(currentPhase),
-				InvocationID: composeInvocationID(d.Configuration.TraceGranularity, minuteIndex, invocationIndex),
-				StartTime:    time.Now().UnixNano(),
+			recordOutputChannel <- &mc.ExecutionRecord{
+				ExecutionRecordBase: mc.ExecutionRecordBase{
+					Phase:        int(currentPhase),
+					InvocationID: composeInvocationID(d.Configuration.TraceGranularity, minuteIndex, invocationIndex),
+					StartTime:    time.Now().UnixNano(),
+				},
 			}
 
 			successfulInvocations++
@@ -502,7 +505,7 @@ func (d *Driver) globalTimekeeper(totalTraceDuration int, signalReady *sync.Wait
 	ticker.Stop()
 }
 
-func (d *Driver) startBackgroundProcesses(allRecordsWritten *sync.WaitGroup) (*sync.WaitGroup, chan interface{}, chan int64, chan int) {
+func (d *Driver) startBackgroundProcesses(allRecordsWritten *sync.WaitGroup) (*sync.WaitGroup, chan *mc.ExecutionRecord, chan int64, chan int) {
 	auxiliaryProcessBarrier := &sync.WaitGroup{}
 
 	finishCh := make(chan int, 1)
@@ -517,7 +520,7 @@ func (d *Driver) startBackgroundProcesses(allRecordsWritten *sync.WaitGroup) (*s
 
 	auxiliaryProcessBarrier.Add(2)
 
-	globalMetricsCollector := make(chan interface{})
+	globalMetricsCollector := make(chan *mc.ExecutionRecord)
 	totalIssuedChannel := make(chan int64)
 	go d.createGlobalMetricsCollector(d.outputFilename("duration"), globalMetricsCollector, auxiliaryProcessBarrier, allRecordsWritten, totalIssuedChannel)
 
@@ -644,8 +647,8 @@ func (d *Driver) RunExperiment(skipIATGeneration bool, readIATFromFIle bool) {
 
 	trace.ApplyResourceLimits(d.Configuration.Functions, d.Configuration.LoaderConfiguration.CPULimit)
 
-	deployer, configuration := deployment.CreateDeployer(d.Configuration)
-	deployer.Deploy(d.Configuration.Functions, configuration)
+	deployer := deployment.CreateDeployer(d.Configuration)
+	deployer.Deploy(d.Configuration)
 
 	go failure.ScheduleFailure(d.Configuration.LoaderConfiguration)
 
