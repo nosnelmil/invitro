@@ -35,8 +35,8 @@ import (
 	"strings"
 )
 
-// Serverless describes the serverless.yml contents.
-type Serverless struct {
+// awsServerless describes the serverless.yml contents.
+type awsServerless struct {
 	Service          string                  `yaml:"service"`
 	FrameworkVersion string                  `yaml:"frameworkVersion"`
 	Provider         slsProvider             `yaml:"provider"`
@@ -65,8 +65,13 @@ type slsFunction struct {
 }
 
 // CreateHeader sets the fields Service, FrameworkVersion, and Provider
+<<<<<<< HEAD
 func (s *Serverless) CreateHeader(index int, provider string) {
 	s.Service = fmt.Sprintf("loader-%d", index)
+=======
+func (s *awsServerless) CreateHeader(provider string) {
+	s.Service = "loader"
+>>>>>>> db80384 (Refactored code and made some methods private)
 	s.FrameworkVersion = "3"
 	s.Provider = slsProvider{
 		Name:             provider,
@@ -88,16 +93,20 @@ func stringContains(s []string, str string) bool {
 }
 
 // AddPackagePattern adds a string pattern to Package.Pattern as long as such a pattern does not already exist in Package.Pattern
-func (s *Serverless) AddPackagePattern(pattern string) {
+func (s *awsServerless) AddPackagePattern(pattern string) {
 	if !stringContains(s.Package.Patterns, pattern) {
 		s.Package.Patterns = append(s.Package.Patterns, pattern)
 	}
 }
 
 // AddFunctionConfig adds the function configuration for serverless.com deployment
+<<<<<<< HEAD
 func (s *Serverless) AddFunctionConfig(function *common.Function, provider string, awsAccountId string) {
 	// Extract trace-func-0 from trace-func-0-2642643831809466437 by splitting on "-"
 	shortName := fmt.Sprintf("%s-%s", common.FunctionNamePrefix, strings.Split(function.Name, "-")[2])
+=======
+func (s *awsServerless) AddFunctionConfig(function *common.Function, provider string) {
+>>>>>>> db80384 (Refactored code and made some methods private)
 
 	var image string
 	var timeout string
@@ -113,8 +122,13 @@ func (s *Serverless) AddFunctionConfig(function *common.Function, provider strin
 	s.Functions[function.Name] = f
 }
 
+<<<<<<< HEAD
 // CreateServerlessConfigFile dumps the contents of the Serverless struct into a yml file (serverless-<index>.yml)
 func (s *Serverless) CreateServerlessConfigFile(index int) {
+=======
+// CreateServerlessConfigFile dumps the contents of the awsServerless struct into a yml file.
+func (s *awsServerless) CreateServerlessConfigFile() {
+>>>>>>> db80384 (Refactored code and made some methods private)
 	data, err := yaml.Marshal(&s)
 	if err != nil {
 		log.Fatal(err)

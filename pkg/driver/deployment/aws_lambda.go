@@ -10,18 +10,16 @@ import (
 	"sync/atomic"
 )
 
-type AWSLambdaDeployer struct {
-	FunctionDeployer
+type awsLambdaDeployer struct{}
+
+type awsLambdaDeploymentConfiguration struct {
 }
 
-type AWSLambdaDeploymentConfiguration struct {
-}
-
-func (*AWSLambdaDeployer) Deploy(functions []*common.Function, _ interface{}) {
+func (*awsLambdaDeployer) Deploy(functions []*common.Function, _ interface{}) {
 	internalAWSDeployment(functions)
 }
 
-func (*AWSLambdaDeployer) Clean() {
+func (*awsLambdaDeployer) Clean() {
 	CleanServerless(0)
 }
 
@@ -274,5 +272,3 @@ func createSlsConfigFiles(functionGroups [][]*common.Function, provider string, 
 		serverless.CreateServerlessConfigFile(i)
 	}
 }
-=======
->>>>>>> e423b32 (Per-system deployment interface)
