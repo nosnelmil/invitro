@@ -21,9 +21,21 @@ type FunctionResponse struct {
 	ExecutionTime int64  `json:"ExecutionTime"`
 }
 
-func InvokeHTTP(function *common.Function, runtimeSpec *common.RuntimeSpecification, client *http.Client, cfg *config.LoaderConfiguration) (bool, *mc.ExecutionRecord) {
-	isDandelion := strings.Contains(strings.ToLower(cfg.Platform), "dandelion")
-	isKnative := strings.Contains(strings.ToLower(cfg.Platform), "knative")
+type httpInvoker struct {
+	client *http.Client
+	cfg    *config.LoaderConfiguration
+}
+
+func newHTTPInvoker(cfg *config.LoaderConfiguration) *httpInvoker {
+	return &httpInvoker{
+		client: CreateHTTPClient(cfg.GRPCFunctionTimeoutSeconds, cfg.InvokeProtocol),
+		cfg:    cfg,
+	}
+}
+
+func (i *httpInvoker) Invoke(function *common.Function, runtimeSpec *common.RuntimeSpecification) (bool, *mc.ExecutionRecord) {
+	isDandelion := strings.Contains(strings.ToLower(i.cfg.Platform), "dandelion")
+	isKnative := strings.Contains(strings.ToLower(i.cfg.Platform), "knative")
 
 	log.Tracef("(Invoke)\t %s: %d[ms], %d[MiB]", function.Name, runtimeSpec.Runtime, runtimeSpec.Memory)
 
@@ -73,7 +85,7 @@ func InvokeHTTP(function *common.Function, runtimeSpec *common.RuntimeSpecificat
 		req.URL.Path = "/hot/matmul"
 	}
 
-	resp, err := client.Do(req)
+	resp, err := i.client.Do(req)
 	if err != nil {
 		log.Errorf("%s - Failed to send an HTTP request to the server - %v\n", function.Name, err)
 
@@ -108,7 +120,7 @@ func InvokeHTTP(function *common.Function, runtimeSpec *common.RuntimeSpecificat
 		if err != nil {
 			log.Warnf("Failed to deserialize Dandelion response - %v - %v", string(body), err)
 		}
-	} else if cfg.AsyncMode {
+	} else if i.cfg.AsyncMode {
 		record.AsyncResponseID = string(body)
 	} else {
 		err = DeserializeDirigentResponse(body, record)

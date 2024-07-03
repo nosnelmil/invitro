@@ -60,7 +60,8 @@ func TestGRPCClientWithServerUnreachable(t *testing.T) {
 	cfg := createFakeLoaderConfiguration()
 	cfg.EnableZipkinTracing = true
 
-	success, record := InvokeGRPC(&testFunction, &testRuntimeSpecs, cfg)
+	invoker := CreateInvoker(cfg, nil, nil)
+	success, record := invoker.Invoke(&testFunction, &testRuntimeSpecs)
 
 	if record.Instance != "" ||
 		record.RequestedDuration != uint32(testRuntimeSpecs.Runtime*1000) ||
@@ -83,9 +84,10 @@ func TestGRPCClientWithServerReachable(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	cfg := createFakeLoaderConfiguration()
+	invoker := CreateInvoker(cfg, nil, nil)
 
 	start := time.Now()
-	success, record := InvokeGRPC(&testFunction, &testRuntimeSpecs, cfg)
+	success, record := invoker.Invoke(&testFunction, &testRuntimeSpecs)
 	logrus.Info("Elapsed: ", time.Since(start).Milliseconds(), " ms")
 
 	if !success ||
@@ -116,9 +118,10 @@ func TestGRPCClientWithServerBatchWorkload(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	cfg := createFakeLoaderConfiguration()
+	invoker := CreateInvoker(cfg, nil, nil)
 
 	for i := 0; i < 50; i++ {
-		success, record := InvokeGRPC(&testFunction, &testRuntimeSpecs, cfg)
+		success, record := invoker.Invoke(&testFunction, &testRuntimeSpecs)
 
 		if !success ||
 			record.MemoryAllocationTimeout != false ||

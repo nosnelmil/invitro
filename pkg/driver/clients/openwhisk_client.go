@@ -52,13 +52,25 @@ type HTTPResBody struct {
 	MemoryUsageInKb    uint32 `json:"MemoryUsageInKb"`
 }
 
-func InvokeOpenWhisk(function *common.Function, runtimeSpec *common.RuntimeSpecification, AnnounceDoneExe *sync.WaitGroup, ReadOpenWhiskMetadata *sync.Mutex) (bool, *mc.ExecutionRecord) {
+type openWhiskInvoker struct {
+	announceDoneExe       *sync.WaitGroup
+	readOpenWhiskMetadata *sync.Mutex
+}
+
+func newOpenWhiskInvoker(announceDoneExe *sync.WaitGroup, readOpenWhiskMetadata *sync.Mutex) *openWhiskInvoker {
+	return &openWhiskInvoker{
+		announceDoneExe:       announceDoneExe,
+		readOpenWhiskMetadata: readOpenWhiskMetadata,
+	}
+}
+
+func (i *openWhiskInvoker) Invoke(function *common.Function, runtimeSpec *common.RuntimeSpecification) (bool, *mc.ExecutionRecord) {
 	log.Tracef("(Invoke)\t %s: %d[ms], %d[MiB]", function.Name, runtimeSpec.Runtime, runtimeSpec.Memory)
 
 	qs := fmt.Sprintf("cpu=%d", runtimeSpec.Runtime)
 
-	success, executionRecordBase, res := httpInvocation(qs, function, AnnounceDoneExe, true)
-	//AnnounceDoneExe.Wait() // To postpone querying OpenWhisk during the experiment for performance reasons (Issue 329: https://github.com/vhive-serverless/invitro/issues/329)
+	success, executionRecordBase, res := httpInvocation(qs, function, i.announceDoneExe, true)
+	//announceDoneExe.Wait() // To postpone querying OpenWhisk during the experiment for performance reasons (Issue 329: https://github.com/vhive-serverless/invitro/issues/329)
 
 	executionRecordBase.RequestedDuration = uint32(runtimeSpec.Runtime * 1e3)
 	record := &mc.ExecutionRecord{ExecutionRecordBase: *executionRecordBase}
@@ -69,7 +81,7 @@ func InvokeOpenWhisk(function *common.Function, runtimeSpec *common.RuntimeSpeci
 
 	/*activationID := res.Header.Get("X-Openwhisk-Activation-Id")
 
-	ReadOpenWhiskMetadata.Lock()
+	readOpenWhiskMetadata.Lock()
 
 	//read data from OpenWhisk based on the activation ID
 	cmd := exec.Command("wsk", "-i", "activation", "get", activationID)
@@ -79,12 +91,12 @@ func InvokeOpenWhisk(function *common.Function, runtimeSpec *common.RuntimeSpeci
 	if err != nil {
 		log.Debugf("error reading activation information from OpenWhisk %s - %s", function.Name, err)
 
-		ReadOpenWhiskMetadata.Unlock()
+		readOpenWhiskMetadata.Unlock()
 
 		return false, record
 	}
 
-	ReadOpenWhiskMetadata.Unlock()
+	readOpenWhiskMetadata.Unlock()
 
 	err, activationMetadata := parseActivationMetadata(out.String())
 	if err != nil {
@@ -131,43 +143,6 @@ func InvokeOpenWhisk(function *common.Function, runtimeSpec *common.RuntimeSpeci
 	return nil, result
 }*/
 
-func InvokeAWSLambda(function *common.Function, runtimeSpec *common.RuntimeSpecification, AnnounceDoneExe *sync.WaitGroup) (bool, *mc.ExecutionRecord) {
-	log.Tracef("(Invoke)\t %s: %d[ms], %d[MiB]", function.Name, runtimeSpec.Runtime, runtimeSpec.Memory)
-
-	dataString := fmt.Sprintf(`{"RuntimeInMilliSec": %d, "MemoryInMebiBytes": %d}`, runtimeSpec.Runtime, runtimeSpec.Memory)
-	success, executionRecordBase, res := httpInvocation(dataString, function, AnnounceDoneExe, false)
-
-	executionRecordBase.RequestedDuration = uint32(runtimeSpec.Runtime * 1e3)
-	record := &mc.ExecutionRecord{ExecutionRecordBase: *executionRecordBase}
-
-	if !success {
-		return false, record
-	}
-
-	// Read the response body
-	responseBody, err := io.ReadAll(res.Body)
-	if err != nil {
-		log.Debugf("Error reading response body:%s", err)
-		return false, record
-	}
-
-	// Create a variable to store the JSON data
-	var httpResBody HTTPResBody
-
-	// Unmarshal the response body into the JSON object
-	if err := json.Unmarshal(responseBody, &httpResBody); err != nil {
-		log.Debugf("Error unmarshaling JSON:%s", err)
-		return false, record
-	}
-
-	record.ActualDuration = httpResBody.DurationInMicroSec
-	record.ActualMemoryUsage = common.Kib2Mib(httpResBody.MemoryUsageInKb)
-
-	logInvocationSummary(function, &record.ExecutionRecordBase, res)
-
-	return true, record
-}
-
 func httpInvocation(dataString string, function *common.Function, AnnounceDoneExe *sync.WaitGroup, tlsSkipVerify bool) (bool, *mc.ExecutionRecordBase, *http.Response) {
 	defer AnnounceDoneExe.Done()
 
@@ -186,8 +161,6 @@ func httpInvocation(dataString string, function *common.Function, AnnounceDoneEx
 		requestURL += "?" + dataString
 	}
 	req, err := http.NewRequest(http.MethodGet, requestURL, bytes.NewBuffer([]byte("")))
-	req.Header.Set("Content-Type", "application/json") // To avoid data being base64encoded
-
 	if err != nil {
 		log.Warnf("http request creation failed for function %s - %s", function.Name, err)
 
@@ -196,6 +169,8 @@ func httpInvocation(dataString string, function *common.Function, AnnounceDoneEx
 
 		return false, record, nil
 	}
+
+	req.Header.Set("Content-Type", "application/json") // To avoid data being base64encoded
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
