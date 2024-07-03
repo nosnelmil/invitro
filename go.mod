@@ -17,8 +17,8 @@ require (
 	github.com/aws/aws-lambda-go v1.47.0
 	github.com/stretchr/testify v1.9.0
 	github.com/vhive-serverless/vSwarm/utils/tracing/go v0.0.0-20230926064847-68cc9b8b8e84
-	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
 	go.mongodb.org/mongo-driver v1.15.0
+	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
 	gopkg.in/yaml.v3 v3.0.1
 )
 

@@ -4,14 +4,16 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/vhive-serverless/loader/pkg/common"
+	"github.com/vhive-serverless/loader/pkg/config"
 	"os/exec"
 	"strings"
 	"sync"
 	"sync/atomic"
-	"github.com/vhive-serverless/loader/pkg/config"
 )
 
-type awsLambdaDeployer struct{}
+type awsLambdaDeployer struct {
+	functions []*common.Function
+}
 
 type awsLambdaDeploymentConfiguration struct {
 }
@@ -24,12 +26,14 @@ func newAWSLambdaDeployerConfiguration(_ *config.Configuration) awsLambdaDeploym
 	return awsLambdaDeploymentConfiguration{}
 }
 
-func (*awsLambdaDeployer) Deploy(cfg *config.Configuration) {
+func (ld *awsLambdaDeployer) Deploy(cfg *config.Configuration) {
+	ld.functions = cfg.Functions
+
 	internalAWSDeployment(cfg.Functions)
 }
 
-func (*awsLambdaDeployer) Clean() {
-	CleanServerless(0)
+func (ld *awsLambdaDeployer) Clean() {
+	CleanAWSLambda(ld.functions)
 }
 
 func internalAWSDeployment(functions []*common.Function) {
@@ -128,7 +132,6 @@ func cleanAWSElasticContainerRegistry() {
 		}
 	}
 }
-<<<<<<< HEAD
 
 // cleanAWSCloudWatchLogGroups cleans up the AWS CloudWatch log groups by deleting all log groups with the prefix "/aws/lambda/trace-func-"
 func cleanAWSCloudWatchLogGroups() {
@@ -271,7 +274,7 @@ func separateFunctions(functions []*common.Function) [][]*common.Function {
 func createSlsConfigFiles(functionGroups [][]*common.Function, provider string, awsAccountId string) {
 	for i := 0; i < len(functionGroups); i++ {
 		log.Debugf("Creating serverless-%d.yml", i)
-		serverless := Serverless{}
+		serverless := awsServerless{}
 		serverless.CreateHeader(i, provider)
 
 		for j := 0; j < len(functionGroups[i]); j++ {

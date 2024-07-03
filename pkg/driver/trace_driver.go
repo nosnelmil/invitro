@@ -186,27 +186,27 @@ func (d *Driver) invokeFunction(metadata *InvocationMetadata, iatIndex int) {
 		case "Knative", "Knative-RPS":
 			if d.Configuration.LoaderConfiguration.InvokeProtocol == "grpc" {
 				success, record = clients.InvokeGRPC(
-					metadata.Function,
-					metadata.RuntimeSpecifications,
+					function,
+					runtimeSpecifications,
 					d.Configuration.LoaderConfiguration,
 				)
 			} else {
-				success, record = clients.InvokeDirigent(
-					metadata.Function,
-					metadata.RuntimeSpecifications,
-					d.GetHTTPClient(),
+				success, record = clients.InvokeHTTP(
+					function,
+					runtimeSpecifications,
+					d.HTTPClient,
 					d.Configuration.LoaderConfiguration,
 				)
 			}
 		case "OpenWhisk", "OpenWhisk-RPS":
-			success, record = InvokeOpenWhisk(
+			success, record = clients.InvokeOpenWhisk(
 				function,
 				runtimeSpecifications,
 				metadata.AnnounceDoneExe,
 				metadata.ReadOpenWhiskMetadata,
 			)
 		case "AWSLambda", "AWSLambda-RPS":
-			success, record = InvokeAWSLambda(
+			success, record = clients.InvokeAWSLambda(
 				function,
 				runtimeSpecifications,
 				metadata.AnnounceDoneExe,
@@ -214,22 +214,22 @@ func (d *Driver) invokeFunction(metadata *InvocationMetadata, iatIndex int) {
 		case "Dirigent", "Dirigent-RPS":
 			if d.Configuration.LoaderConfiguration.InvokeProtocol == "grpc" {
 				success, record = clients.InvokeGRPC(
-					metadata.Function,
-					metadata.RuntimeSpecifications,
+					function,
+					runtimeSpecifications,
 					d.Configuration.LoaderConfiguration,
 				)
 			} else {
 				success, record = clients.InvokeHTTP(
-					metadata.Function,
-					metadata.RuntimeSpecifications,
+					function,
+					runtimeSpecifications,
 					d.HTTPClient,
 					d.Configuration.LoaderConfiguration,
 				)
 			}
 		case "Dirigent-Dandelion", "Dirigent-Dandelion-RPS":
 			success, record = clients.InvokeHTTP(
-				metadata.Function,
-				metadata.RuntimeSpecifications,
+				function,
+				runtimeSpecifications,
 				d.HTTPClient,
 				d.Configuration.LoaderConfiguration,
 			)
