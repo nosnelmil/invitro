@@ -161,8 +161,6 @@ func parseIATDistribution(cfg *config.LoaderConfiguration) (common.IatDistributi
 
 func parseYAMLSpecification(cfg *config.LoaderConfiguration) string {
 	switch cfg.YAMLSelector {
-	case "wimpy":
-		return "workloads/container/wimpy.yaml"
 	case "container":
 		return "workloads/container/trace_func_go.yaml"
 	case "firecracker":

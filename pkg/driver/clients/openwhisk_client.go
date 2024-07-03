@@ -32,7 +32,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -104,7 +103,7 @@ func InvokeOpenWhisk(function *common.Function, runtimeSpec *common.RuntimeSpeci
 	return true, record
 }
 
-func parseActivationMetadata(response string) (error, ActivationMetadata) {
+/*func parseActivationMetadata(response string) (error, ActivationMetadata) {
 	var result ActivationMetadata
 	var jsonMap map[string]interface{}
 
@@ -130,7 +129,7 @@ func parseActivationMetadata(response string) (error, ActivationMetadata) {
 	}
 
 	return nil, result
-}
+}*/
 
 func InvokeAWSLambda(function *common.Function, runtimeSpec *common.RuntimeSpecification, AnnounceDoneExe *sync.WaitGroup) (bool, *mc.ExecutionRecord) {
 	log.Tracef("(Invoke)\t %s: %d[ms], %d[MiB]", function.Name, runtimeSpec.Runtime, runtimeSpec.Memory)

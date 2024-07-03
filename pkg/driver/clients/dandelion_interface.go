@@ -2,7 +2,6 @@ package clients
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/vhive-serverless/loader/pkg/common"
@@ -31,7 +30,7 @@ type DandelionDeserializeResponse struct {
 	Sets []InputSet `bson:"sets"`
 }
 
-func composeDandelionMatMulBody(functionName string) *bytes.Buffer {
+/*func composeDandelionMatMulBody(functionName string) *bytes.Buffer {
 	request := DandelionRequest{
 		Name: functionName,
 		Sets: []InputSet{
@@ -55,7 +54,7 @@ func composeDandelionMatMulBody(functionName string) *bytes.Buffer {
 	}
 
 	return bytes.NewBuffer(body)
-}
+}*/
 
 func composeBusyLoopBody(functionName, image string, runtime, iterations int) *bytes.Buffer {
 	request := DandelionRequest{
@@ -94,7 +93,7 @@ func DeserializeDandelionResponse(function *common.Function, body []byte, record
 	var result DandelionDeserializeResponse
 	err := bson.Unmarshal(body, &result)
 	if err != nil {
-		return errors.New(fmt.Sprintf("Error deserializing response body - %v", err))
+		return fmt.Errorf("error deserializing response body - %v", err)
 	}
 
 	rawResponseData := result.Sets[0].Items[0].Data
