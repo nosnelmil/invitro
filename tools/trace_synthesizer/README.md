@@ -52,6 +52,8 @@ optional arguments:
 # RPS is multiplied by 60 by default, to change this, edit `ipm = [60 * x for x in rps]` in `synthesizer.py`
 # `-dur` determines how long each RPS should continue for (in minutes) before increasing to the next RPS step
 python3 . generate -f 2 -b 10 -t 20 -s 5 -dur 3 -e 500 -mem 350 -o example_normal -m 0
+python3 . generate -f 1 -b 20 -t 40 -s 5 -dur 2 -e 500 -mem 350 -o example_normal -m 0
+
 
 # RPS Sweep mode is to spread the invocations across all functions evenly
 # E.g. Across the default 10 minute cycle (i.e. `padding=10`) and for 2 functions, functions will be invoked one by one every 5 minutes

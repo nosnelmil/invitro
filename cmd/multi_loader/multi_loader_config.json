@@ -1,0 +1,17 @@
+{
+    "Experiments": [
+        {
+            "Name": "experiment1",
+            "Config": {
+                "Seed": 50
+            }
+        },
+        {
+            "Name": "experiment2",
+            "Config": {
+                "Seed": 100
+            }
+        }
+    ],
+    "BaseConfigPath": "base_loader_config.json"
+}

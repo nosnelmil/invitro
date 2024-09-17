@@ -58,6 +58,16 @@ type LoaderConfiguration struct {
 	DAGMode                      bool `json:"DAGMode"`
 }
 
+type MutliLoaderConfiguration struct {
+	Experiments 	[]LoaderExperiment `json:"Experiments"`
+	BaseConfigPath  string             `json:"BaseConfigPath"`
+}
+
+type LoaderExperiment struct {
+	Config  map[string]interface{} `json:"Config"`
+	Name    string                 `json:"Name"`
+}
+
 func ReadConfigurationFile(path string) LoaderConfiguration {
 	byteValue, err := os.ReadFile(path)
 	if err != nil {
@@ -65,6 +75,21 @@ func ReadConfigurationFile(path string) LoaderConfiguration {
 	}
 
 	var config LoaderConfiguration
+	err = json.Unmarshal(byteValue, &config)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return config
+}
+
+func ReadMultiLoaderConfigurationFile(path string) MutliLoaderConfiguration {
+	byteValue, err := os.ReadFile(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var config MutliLoaderConfiguration
 	err = json.Unmarshal(byteValue, &config)
 	if err != nil {
 		log.Fatal(err)
