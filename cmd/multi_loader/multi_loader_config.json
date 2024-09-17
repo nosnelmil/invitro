@@ -4,7 +4,14 @@
             "Name": "experiment1",
             "Config": {
                 "TracePath": "data/traces/example1",
-                "OutputPathPrefix": "data/out/experiment",
+                "OutputPathPrefix": "data/out/experiment1",
+                "ExperimentDuration": 1
+            }
+        },
+        {
+            "Name": "experiment1",
+            "Config": {
+                "TracePath": "data/traces/example1",
                 "ExperimentDuration": 1
             }
         },
@@ -12,7 +19,7 @@
             "Name": "experiment2",
             "Config": {
                 "TracePath": "data/traces/example2",
-                "OutputPathPrefix": "data/out/experiment",
+                "OutputPathPrefix": "data/out/experiment2",
                 "ExperimentDuration": 2
             }
         }
