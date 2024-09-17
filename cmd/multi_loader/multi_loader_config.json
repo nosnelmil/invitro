@@ -3,15 +3,19 @@
         {
             "Name": "experiment1",
             "Config": {
-                "Seed": 50
+                "TracePath": "data/traces/example1",
+                "OutputPathPrefix": "data/out/experiment",
+                "ExperimentDuration": 1
             }
         },
         {
             "Name": "experiment2",
             "Config": {
-                "Seed": 100
+                "TracePath": "data/traces/example2",
+                "OutputPathPrefix": "data/out/experiment",
+                "ExperimentDuration": 2
             }
         }
     ],
-    "BaseConfigPath": "base_loader_config.json"
+    "BaseConfigPath": "cmd/multi_loader/base_loader_config.json"
 }
