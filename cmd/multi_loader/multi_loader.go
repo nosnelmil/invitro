@@ -159,8 +159,10 @@ func mergeConfigurations(baseConfigPath string, experiment config.LoaderExperime
 	log.Debug("Base configuration ", mergedConfig)
 	// check if experiment config has a field: OutputPathPrefix
 	if _, ok := experiment.Config["OutputPathPrefix"]; !ok {
-		experiment.Config["OutputPathPrefix"] = "data/out/" +experiment.Name + "_" + time.Now().Format("Jan02_1504")
+		experiment.Config["OutputPathPrefix"] = "data/out/" +experiment.Name 
 	}
+	experiment.Config["OutputPathPrefix"] = experiment.Config["OutputPathPrefix"].(string) + "_" + time.Now().Format("Jan02_1504")
+
 	experimentConfigBytes, _ := json.Marshal(experiment.Config)
 	err = json.Unmarshal(experimentConfigBytes, &mergedConfig);
 	if err != nil {
