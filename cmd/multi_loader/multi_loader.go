@@ -94,22 +94,51 @@ func runExperiment(experiment config.LoaderExperiment) {
 	stderr, _ := cmd.StderrPipe()
 	cmd.Start()
 	
-	go logOutput(stdout, log.WithField("Experiment", experiment.Name).Info)
-	go logOutput(stderr, log.WithField("Experiment", experiment.Name).Error)
+	go logStdOutput(stdout, experiment.Name)
+	go logStdError(stderr, experiment.Name)
 
 	cmd.Wait()
 
 	log.Info("Experiment ", experiment.Name, " completed")
 }
 
-func logOutput(stdPipe io.ReadCloser, logFunc func(args ...interface{})) {
+func logStdOutput(stdPipe io.ReadCloser, experimentName string) {
     scanner := bufio.NewScanner(stdPipe)
     scanner.Split(bufio.ScanLines)
     for scanner.Scan() {
         m := scanner.Text()
 		
 		if m == "" {continue}
-        logFunc(m)
+		// extract message from logrus output
+		logTypeArr := strings.Split(m, "level=")
+		var logType string
+		if len(logTypeArr) > 1 {
+			logType = strings.Split(logTypeArr[1], " ")[0]
+		} else {
+			logType = "info"
+		}
+		message := strings.Split(m, "msg=")
+		if len(message) > 1 {
+			m = message[1][1:len(message[1])-1]
+		}
+		if logType == "debug" {
+			log.WithField("Experiment", experimentName).Debug(m)
+		} else if logType == "trace" {
+			log.WithField("Experiment", experimentName).Trace(m)
+		} else {
+			log.WithField("Experiment", experimentName).Info(m)
+		}
+	}
+}
+func logStdError(stdPipe io.ReadCloser, experimentName string) {
+    scanner := bufio.NewScanner(stdPipe)
+	// scanner.Scan()
+    // scanner.Split(bufio.ScanLines)
+    for scanner.Scan() {
+        m := scanner.Text()
+		
+		if m == "" {continue}
+		log.WithField("Experiment", experimentName).Error(m)
 	}
 }
 
