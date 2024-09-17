@@ -8,7 +8,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,16 +18,15 @@ import (
 
 const (
 	OWNER_READ_WRITE = 0644
-	LOADER_RELATIVE_PATH = "../loader.go"
-	EXPERIMENT_TEMP_CONFIG_PATH = "current_running_config.json"
+	LOADER_PATH = "cmd/loader.go"
+	EXPERIMENT_TEMP_CONFIG_PATH = "cmd/multi_loader/current_running_config.json"
 
 )
 
 var (
-    multiLoaderConfigPath    = flag.String("multiLoaderConfig", "multi_loader_config.json", "Path to multi loader configuration file")
+    multiLoaderConfigPath    = flag.String("multiLoaderConfig", "cmd/multi_loader/multi_loader_config.json", "Path to multi loader configuration file")
     verbosity     = flag.String("verbosity", "info", "Logging verbosity - choose from [info, debug, trace]")
-    iatGeneration = flag.Bool("iatGeneration", false, "Generate iats only or run invocations as well")
-    generated     = flag.Bool("generated", false, "True if iats were already generated")
+	prompt = flag.Bool("prompt", true, "Prompt user to confirm experiment")
 )
 
 // Initialize logger
@@ -54,34 +53,21 @@ func main() {
 	log.Info("Starting multiloader")
 	multiLoaderConfig := config.ReadMultiLoaderConfigurationFile(*multiLoaderConfigPath)
 
-	// Get absolute path of the loader
-    loaderPath, err := filepath.Abs(LOADER_RELATIVE_PATH)
-    if err != nil {
-        log.Fatalf("Failed to get absolute path %s: %v", loaderPath, err)
-    }
 	// Iterate over experiments and run them
 	for _, experiment := range multiLoaderConfig.Experiments {
 		// Ask user to confirm the experiment from cli
-		log.Info("Do you want to run experiment ", experiment.Name, "? (y/n)")
-		var input string
-		fmt.Scanln(&input)
-		if strings.ToLower(input) == "n" {
-			log.Info("Skipping experiment ", experiment.Name)
+		if *prompt && !promptUser(experiment.Name){
 			continue
 		}
-
 		log.Info("Preparing experiment ", experiment.Name)
 		// Merge base configs with experiment configs
-		experimentConfig := mergeConfigurations(multiLoaderConfig.BaseConfigPath, experiment.Config)
+		experimentConfig := mergeConfigurations(multiLoaderConfig.BaseConfigPath, experiment)
 		// Write experiment configs to temp file
-		experiementConfigBytes, _ := json.Marshal(experimentConfig);
-		err := os.WriteFile(EXPERIMENT_TEMP_CONFIG_PATH, experiementConfigBytes, OWNER_READ_WRITE)
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer os.Remove(EXPERIMENT_TEMP_CONFIG_PATH)
+		writeExperimentConfigToTempFile(experimentConfig, EXPERIMENT_TEMP_CONFIG_PATH)
 		// Call loader.go
-		runExperiment(experiment, loaderPath)
+		runExperiment(experiment)
+		// Remove temp file
+		os.Remove(EXPERIMENT_TEMP_CONFIG_PATH)
 	}
 	log.Info("All experiments completed")
 }
@@ -89,14 +75,20 @@ func main() {
 /**
  * Run loader.go with experiment configs
  */
-func runExperiment(experiment config.LoaderExperiment,loaderPath string) {
+func runExperiment(experiment config.LoaderExperiment) {
 	log.Info("Running experiment ", experiment.Name)
+	log.Debug("Experiment configuration ", experiment.Config)
+
+	experimentVerbosity := experiment.Verbosity
+	if experiment.Verbosity == "" {
+		experimentVerbosity = *verbosity
+	}
 	// Run loader.go with experiment configs
-	cmd := exec.Command("go", "run", loaderPath,
-		"--config="+EXPERIMENT_TEMP_CONFIG_PATH,
-		"--verbosity="+*verbosity,
-		fmt.Sprintf("--iatGeneration=%v", *iatGeneration),
-		fmt.Sprintf("--generated=%v", *generated))
+	cmd := exec.Command("go", "run", LOADER_PATH,
+		"--config=" + EXPERIMENT_TEMP_CONFIG_PATH,
+		"--verbosity=" + experimentVerbosity,
+		"--iatGeneration=" + strconv.FormatBool(experiment.IatGeneration),
+		"--generated=" + strconv.FormatBool(experiment.Generated))
 
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()
@@ -117,23 +109,18 @@ func logOutput(stdPipe io.ReadCloser, logFunc func(args ...interface{})) {
         m := scanner.Text()
 		
 		if m == "" {continue}
-		// extract message from logrus output
-		message := strings.Split(m, "msg=")
-		if len(message) > 1 {
-			m = message[1][1:len(message[1])-1]
-		}
         logFunc(m)
 	}
 }
 
 // Merge base configs with experiment configs
-func mergeConfigurations(baseConfigPath string, experimentConfig map[string]interface{}) config.LoaderConfiguration {
+func mergeConfigurations(baseConfigPath string, experiment config.LoaderExperiment) config.LoaderConfiguration {
 	// Read base configuration
 	baseConfigByteValue, err := os.ReadFile(baseConfigPath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Debug("Experiment configuration ", experimentConfig)
+	log.Debug("Experiment configuration ", experiment.Config)
 	var mergedConfig config.LoaderConfiguration
 	err = json.Unmarshal(baseConfigByteValue, &mergedConfig)
 	if err != nil {
@@ -141,7 +128,11 @@ func mergeConfigurations(baseConfigPath string, experimentConfig map[string]inte
 	}
 	
 	log.Debug("Base configuration ", mergedConfig)
-	experimentConfigBytes, _ := json.Marshal(experimentConfig)
+	// check if experiment config has a field: OutputPathPrefix
+	if _, ok := experiment.Config["OutputPathPrefix"]; !ok {
+		experiment.Config["OutputPathPrefix"] = experiment.Name + time.Now().Format("Jan021504Z0700")
+	}
+	experimentConfigBytes, _ := json.Marshal(experiment.Config)
 	err = json.Unmarshal(experimentConfigBytes, &mergedConfig);
 	if err != nil {
 		log.Fatal(err)
@@ -149,4 +140,23 @@ func mergeConfigurations(baseConfigPath string, experimentConfig map[string]inte
 	log.Debug("Merged configuration ", mergedConfig)
 
 	return mergedConfig
+}
+
+func writeExperimentConfigToTempFile(experimentConfig config.LoaderConfiguration, fileWritePath string) {
+	experimentConfigBytes, _ := json.Marshal(experimentConfig)
+	err := os.WriteFile(fileWritePath, experimentConfigBytes, OWNER_READ_WRITE)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func promptUser(experimentName string) bool {
+	log.Info("Do you want to run experiment ", experimentName, "? (y/n)")
+	var input string
+	fmt.Scanln(&input)
+	if strings.ToLower(input) == "n" {
+		log.Info("Skipping experiment ", experimentName)
+		return false
+	}
+	return true
 }

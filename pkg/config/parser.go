@@ -64,8 +64,11 @@ type MutliLoaderConfiguration struct {
 }
 
 type LoaderExperiment struct {
-	Config  map[string]interface{} `json:"Config"`
-	Name    string                 `json:"Name"`
+	Config  		map[string]interface{}	`json:"Config"`
+	Name    		string           		`json:"Name"`
+	Verbosity		string 			   		`json:"Verbosity"`
+	IatGeneration 	bool 					`json:"IatGeneration"`
+	Generated 		bool 					`json:"Generated"`
 }
 
 func ReadConfigurationFile(path string) LoaderConfiguration {
