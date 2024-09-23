@@ -25,6 +25,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"os"
 	"time"
@@ -64,10 +65,18 @@ func init() {
 func main() {
 	log.Info("iatGeneration ", *iatGeneration)
 	log.Info("generated ", *generated)
+	// panic("test")
 	log.Info("configPath ", *configPath)
 	log.Info("verbosity ", *verbosity)
 	
 	cfg := config.ReadConfigurationFile(*configPath)
+	jsonData, err := json.Marshal(cfg)
+	if err != nil {
+		log.Fatalf("Failed to marshal config: %v", err)
+	}
+	err = os.WriteFile(cfg.OutputPathPrefix, jsonData, 0644)
+	if err != nil {
+		log.Fatalf("Failed to write config to file: %v", err)
+	}
 	log.Info("cfg", cfg)
-	
 }

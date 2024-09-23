@@ -59,8 +59,10 @@ type LoaderConfiguration struct {
 }
 
 type MutliLoaderConfiguration struct {
-	Experiments 	[]LoaderExperiment `json:"Experiments"`
-	BaseConfigPath  string             `json:"BaseConfigPath"`
+	Experiments 	[]LoaderExperiment 	`json:"Experiments"`
+	BaseConfigPath  string             	`json:"BaseConfigPath"`
+	PreScriptPath 	string 				`json:"PreScriptPath"`
+	PostScriptPath 	string 				`json:"PostScriptPath"`
 }
 
 type LoaderExperiment struct {
@@ -69,6 +71,10 @@ type LoaderExperiment struct {
 	Verbosity		string 			   		`json:"Verbosity"`
 	IatGeneration 	bool 					`json:"IatGeneration"`
 	Generated 		bool 					`json:"Generated"`
+	TracesDir 		string 					`json:"TracesDir"`
+	OutputDir 		string 					`json:"OutputDir"`
+	PreScriptPath 	string 					`json:"PreScriptPath"`
+	PostScriptPath 	string 					`json:"PostScriptPath"`
 }
 
 func ReadConfigurationFile(path string) LoaderConfiguration {
