@@ -155,7 +155,7 @@ func runExperiment(experiment config.LoaderExperiment) {
 		experimentOutPutDirArr = experimentOutPutDirArr[:len(experimentOutPutDirArr)-1]
 		experimentOutPutDir := strings.Join(experimentOutPutDirArr, "/")
 
-		logFile, err := os.OpenFile(experimentOutPutDir+"/output.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		logFile, err := os.OpenFile(experimentOutPutDir+"/loader.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
 			log.Fatal(err)
 		}
