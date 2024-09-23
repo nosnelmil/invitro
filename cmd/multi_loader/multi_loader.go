@@ -18,7 +18,7 @@ import (
 const (
 	rw_r__r__ = 0644
 	rwxr_xr_x = 0755
-	LOADER_PATH = "cmd/test/test.go"
+	LOADER_PATH = "cmd/loader.go"
 	EXPERIMENT_TEMP_CONFIG_PATH = "cmd/multi_loader/current_running_config.json"
 	NUM_OF_RETRIES = 2
 )
