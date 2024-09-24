@@ -1,0 +1,39 @@
+@startuml multi_loader_sd
+
+participant multi_loader as ml
+participant loader as l
+
+autonumber
+ml++
+ml -> ml: read multi_loader config file
+ml -> ml: run global prescript
+loop for each experiment
+  alt tracesDir not empty
+    ml->ml: create sub experiments based on each file
+  else
+    ml->ml: experiment will be sole sub experiment
+  end
+  ml->ml: run experiment level prescript
+  loop for each sub experiment
+    ml->ml: merge base config with sub experiment's config
+    ml->ml: create output dirs
+    ml->ml: write merged config to temp file
+    ml->ml: create log file
+    loop for NUM_OF_RETRIES
+      alt current iteration > 0
+        ml->ml: modify verbosity level to debug
+      end
+      ml->l++: run loader.go
+      l->l: loader actions
+      return stream output
+      ml->ml: pipe output to logfile and stdout     
+      break if no error
+      end
+    end
+    ml->ml: perform cleanup (remove tempfiles & make clean)
+  end
+  ml->ml: run experiment level postscript
+end
+ml->ml: run global level postscript
+
+@enduml
