@@ -56,7 +56,7 @@ func main() {
 	runScript(multiLoaderConfig.PreScriptPath)
 	// Iterate over experiments and run them
 	for _, experiment := range multiLoaderConfig.Experiments {
-		log.Info("Preparing experiment ", experiment.Name)
+		log.Info("Setting up experiment: ", experiment.Name)
 		// Unpack experiment
 		subExperiments := unpackExperiment(experiment)
 		// Run each experiment
@@ -83,7 +83,7 @@ func main() {
 }
 
 func prepareExperiment(multiLoaderConfig config.MutliLoaderConfiguration, subExperiment config.LoaderExperiment) {
-	log.Info("Preparing experiment ", subExperiment.Name)
+	log.Info("Preparing ", subExperiment.Name)
 	// Merge base configs with experiment configs
 	experimentConfig := mergeConfigurations(multiLoaderConfig.BaseConfigPath, subExperiment)
     
@@ -136,7 +136,7 @@ func unpackExperiment(experiment config.LoaderExperiment) []config.LoaderExperim
  * Run loader.go with experiment configs
  */
 func runExperiment(experiment config.LoaderExperiment) {
-	log.Info("Running experiment ", experiment.Name)
+	log.Info("Running ", experiment.Name)
 	log.Debug("Experiment configuration ", experiment.Config)
 
 	experimentVerbosity := experiment.Verbosity
@@ -199,16 +199,16 @@ func runExperiment(experiment config.LoaderExperiment) {
 		break
 	}
 
-	log.Info("Experiment ", experiment.Name, " completed")
+	log.Info(experiment.Name, " completed")
 }
 
 func performCleanup() {
+	log.Info("Runnning Cleanup")
 	// Remove temp file
 	os.Remove(EXPERIMENT_TEMP_CONFIG_PATH)
 	// Run make clean
 	cmd := exec.Command("make", "clean")
 	cmd.Run()
-	log.Info("Cleanup completed")
 }
 
 
@@ -233,14 +233,14 @@ func logStdOutput(stdPipe io.ReadCloser, logFile *os.File) {
 		if len(message) > 1 {
 			m = message[1][1:len(message[1])-1]
 		}
-		m = strings.TrimRight(m, "\n\r")
+		m = strings.ReplaceAll(m, "\n", "")
 		if logType == "debug" {
 			log.Debug(m)
 		} else if logType == "trace" {
 			log.Trace(m)
 		} else {
 			if strings.Contains(m, "Number of successful invocations:") || strings.Contains(m, "Number of failed invocations:") {
-				m = strings.Replace(m, "\t", " ", -1)
+				m = strings.ReplaceAll(m, "\t", "  ",)
 				log.Info(m)
 			}
 		}
@@ -300,10 +300,10 @@ func writeExperimentConfigToTempFile(experimentConfig config.LoaderConfiguration
 }
 
 func runScript(scriptPath string) {
-	log.Info("Running script ", scriptPath)
 	if scriptPath == "" {
 		return
 	}
+	log.Info("Running script ", scriptPath)
 	cmd, err := exec.Command("/bin/sh", scriptPath).Output()
 	if err != nil {
 		log.Fatal(err)
