@@ -19,6 +19,7 @@ const (
 	rw_r__r__ = 0644
 	rwxr_xr_x = 0755
 	LOADER_PATH = "cmd/loader.go"
+	// LOADER_PATH = "cmd/test/test.go"
 	EXPERIMENT_TEMP_CONFIG_PATH = "cmd/multi_loader/current_running_config.json"
 	NUM_OF_RETRIES = 2
 )
@@ -69,8 +70,7 @@ func main() {
 			// Run post script
 			runScript(subExperiment.PostScriptPath)
 			// Perform cleanup
-			// Remove temp file
-			os.Remove(EXPERIMENT_TEMP_CONFIG_PATH)
+			performCleanup()
 		}
 		if len(subExperiments) > 1 {
 			log.Info("All experiments for ", experiment.Name, " completed")
@@ -112,9 +112,10 @@ func unpackExperiment(experiment config.LoaderExperiment) []config.LoaderExperim
 
 		for _, file := range files {
 			var newExperiment config.LoaderExperiment
-			// Deep copy experiment
+			// Create a deep copy of experiment
 			DeepCopy(experiment, &newExperiment)
 			
+			// Set new experiment configs based on trace file
 			newExperiment.Config["TracePath"] = newExperiment.TracesDir + "/" + file.Name()
 			newExperiment.Config["OutputPathPrefix"] = newExperiment.OutputDir + "/" + newExperiment.Name + "/" + file.Name() + "/" + file.Name()
 			newExperiment.Name = experiment.Name + "_" + file.Name()
@@ -143,22 +144,32 @@ func runExperiment(experiment config.LoaderExperiment) {
 		experimentVerbosity = *verbosity
 	}
 
+	// Setup logrus logger
+	// Create the log file
+	experimentOutPutDirArr := strings.Split(experiment.Config["OutputPathPrefix"].(string), "/")
+	experimentOutPutDirArr = experimentOutPutDirArr[:len(experimentOutPutDirArr)-1]
+	experimentOutPutDir := strings.Join(experimentOutPutDirArr, "/")
+	logFilePath := experimentOutPutDir+"/loader.log"
+
+	if _, err := os.Stat(logFilePath); err == nil {
+		err := os.Remove(logFilePath)
+		if err != nil {
+			log.Error(err)
+		}
+	}
+	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer logFile.Close()
+
 	for i := 0; i < NUM_OF_RETRIES; i++ {
 		if i > 0 {
 			log.Info("Retrying experiment ", experiment.Name)
+			logFile.WriteString("==================================RETRYING==================================\n")
 			experimentVerbosity = "debug"
 		}
 		
-		// Setup logrus logger
-		// Create the log file
-		experimentOutPutDirArr := strings.Split(experiment.Config["OutputPathPrefix"].(string), "/")
-		experimentOutPutDirArr = experimentOutPutDirArr[:len(experimentOutPutDirArr)-1]
-		experimentOutPutDir := strings.Join(experimentOutPutDirArr, "/")
-
-		logFile, err := os.OpenFile(experimentOutPutDir+"/loader.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-		if err != nil {
-			log.Fatal(err)
-		}
 
 		// Run loader.go with experiment configs
 		cmd := exec.Command("go", "run", LOADER_PATH,
@@ -180,11 +191,9 @@ func runExperiment(experiment config.LoaderExperiment) {
 			log.Error(err)
 		}
 		
-		logFile.Close()
-		log.SetOutput(os.Stdout)
-
 		if err != nil {
 			log.Error("Experiment failed: ", experiment.Name)
+			logFile.WriteString("Experiment failed: " + experiment.Name + "\n")
 			continue
 		}
 		break
@@ -192,6 +201,16 @@ func runExperiment(experiment config.LoaderExperiment) {
 
 	log.Info("Experiment ", experiment.Name, " completed")
 }
+
+func performCleanup() {
+	// Remove temp file
+	os.Remove(EXPERIMENT_TEMP_CONFIG_PATH)
+	// Run make clean
+	cmd := exec.Command("make", "clean")
+	cmd.Run()
+	log.Info("Cleanup completed")
+}
+
 
 func logStdOutput(stdPipe io.ReadCloser, logFile *os.File) {
 
@@ -214,12 +233,16 @@ func logStdOutput(stdPipe io.ReadCloser, logFile *os.File) {
 		if len(message) > 1 {
 			m = message[1][1:len(message[1])-1]
 		}
+		m = strings.TrimRight(m, "\n\r")
 		if logType == "debug" {
 			log.Debug(m)
 		} else if logType == "trace" {
 			log.Trace(m)
 		} else {
-			log.Info(m)
+			if strings.Contains(m, "Number of successful invocations:") || strings.Contains(m, "Number of failed invocations:") {
+				m = strings.Replace(m, "\t", " ", -1)
+				log.Info(m)
+			}
 		}
 	}
 }
@@ -291,35 +314,5 @@ func runScript(scriptPath string) {
 func DeepCopy(a, b interface{}) {
     byt, _ := json.Marshal(a)
     json.Unmarshal(byt, b)
-}
-
-func structToMap(obj interface{}) (map[string]interface{}, error) {
-	var result map[string]interface{}
-
-	jsonBytes, err := json.Marshal(obj)
-	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(jsonBytes, &result)
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
-func mapToStruct(m map[string]interface{}, obj interface{}) error {
-	jsonBytes, err := json.Marshal(m)
-	if err != nil {
-		return err
-	}
-
-	err = json.Unmarshal(jsonBytes, obj)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 

@@ -65,7 +65,8 @@ func init() {
 func main() {
 	log.Info("iatGeneration ", *iatGeneration)
 	log.Info("generated ", *generated)
-	// panic("test")
+	log.Debug("DEBUG")
+	panic("test")
 	log.Info("configPath ", *configPath)
 	log.Info("verbosity ", *verbosity)
 	
