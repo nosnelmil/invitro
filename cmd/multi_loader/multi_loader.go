@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -18,10 +20,12 @@ import (
 const (
 	rw_r__r__ = 0644
 	rwxr_xr_x = 0755
-	// LOADER_PATH = "cmd/loader.go"
-	LOADER_PATH = "cmd/test/test.go"
+	LOADER_PATH = "cmd/loader.go"
+	// LOADER_PATH = "cmd/test/test.go"
 	EXPERIMENT_TEMP_CONFIG_PATH = "cmd/multi_loader/current_running_config.json"
 	NUM_OF_RETRIES = 2
+	TIME_FORMAT = "Jan_02_1504"
+	TRACE_FORMAT_STRING = "{}"
 )
 
 var (
@@ -82,6 +86,72 @@ func main() {
 	log.Info("All experiments completed")
 }
 
+// The role of this function is just to create partial loader configs 
+// and the values will override values in the base loader config later
+func unpackExperiment(experiment config.LoaderExperiment) []config.LoaderExperiment {
+	log.Info("Unpacking experiment ", experiment.Name)
+	subExperiments := []config.LoaderExperiment{}
+
+	log.Info("TEST", experiment.TracesDir, experiment.TracesFormat, experiment.TraceValues)
+	// If user specified a trace directory
+	if experiment.TracesDir != "" {
+		files, err := os.ReadDir(experiment.TracesDir)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// Create a experiemnt config for each trace file
+
+		// TODO: loop through arr of value defined in config
+		for _, file := range files {
+			var newExperiment config.LoaderExperiment
+			// deep copy experiment
+			DeepCopy(experiment, &newExperiment)
+			
+			// Set new experiment configs based on trace file
+			newExperiment.Config["TracePath"] = path.Join(newExperiment.TracesDir, file.Name())
+			newExperiment.Config["OutputPathPrefix"] = path.Join(
+				newExperiment.OutputDir, 
+				newExperiment.Name, 
+				time.Now().Format(TIME_FORMAT) + "_" + file.Name(), 
+				file.Name())
+			newExperiment.Name = file.Name()
+			
+			// Merge base configs with experiment configs
+			subExperiments = append(subExperiments, newExperiment)
+		}
+	// User Define trace format and values instead of directory
+	} else if experiment.TracesFormat != "" && len(experiment.TraceValues) > 0 {
+		// Create a experiemnt config for each trace value
+		for _, traceValue := range experiment.TraceValues {
+			var newExperiment config.LoaderExperiment
+			// deep copy experiment
+			DeepCopy(experiment, &newExperiment)
+			
+			tracePath := strings.Replace(experiment.TracesFormat, TRACE_FORMAT_STRING, fmt.Sprintf("%v", traceValue), -1)
+			log.Info("TRACE PATH", tracePath)
+			fileName := path.Base(tracePath)
+			// Set new experiment configs based on trace value
+			newExperiment.Config["TracePath"] = tracePath
+			newExperiment.Config["OutputPathPrefix"] = path.Join(
+				newExperiment.OutputDir, 
+				newExperiment.Name, 
+				time.Now().Format(TIME_FORMAT) + "_" + fileName, 
+				fileName)
+			newExperiment.Name = newExperiment.Name + "_" + fileName
+			
+			// Merge base configs with experiment configs
+			subExperiments = append(subExperiments, newExperiment)
+		}
+	} else {
+		// Theres only one experiment in the study
+		// check if experiment config has the OutputPathPrefix field
+		if _, ok := experiment.Config["OutputPathPrefix"]; !ok {
+			experiment.Config["OutputPathPrefix"] = "data/out/" + time.Now().Format(TIME_FORMAT) + "_" + experiment.Name 
+		}
+		subExperiments = append(subExperiments, experiment)
+	}
+	return subExperiments
+}
 func prepareExperiment(multiLoaderConfig config.MutliLoaderConfiguration, subExperiment config.LoaderExperiment) {
 	log.Info("Preparing ", subExperiment.Name)
 	// Merge base configs with experiment configs
@@ -89,7 +159,7 @@ func prepareExperiment(multiLoaderConfig config.MutliLoaderConfiguration, subExp
     
 	// Create output directory
 	outputDirs := strings.Split(experimentConfig.OutputPathPrefix, "/")
-	outputDir := strings.Join(outputDirs[:len(outputDirs)-1], "/")
+	outputDir := path.Join(outputDirs[:len(outputDirs)-1]...)
 	err := os.MkdirAll(outputDir, rwxr_xr_x)
 	if err != nil {
 		log.Fatal(err)
@@ -98,38 +168,33 @@ func prepareExperiment(multiLoaderConfig config.MutliLoaderConfiguration, subExp
 	writeExperimentConfigToTempFile(experimentConfig, EXPERIMENT_TEMP_CONFIG_PATH)
 }
 
-func unpackExperiment(experiment config.LoaderExperiment) []config.LoaderExperiment {
-	log.Info("Unpacking experiment ", experiment.Name)
-	subExperiments := []config.LoaderExperiment{}
-
-
-	if experiment.TracesDir != "" {
-
-		files, err := os.ReadDir(experiment.TracesDir)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		for _, file := range files {
-			var newExperiment config.LoaderExperiment
-			// Create a deep copy of experiment
-			DeepCopy(experiment, &newExperiment)
-			
-			// Set new experiment configs based on trace file
-			newExperiment.Config["TracePath"] = newExperiment.TracesDir + "/" + file.Name()
-			newExperiment.Config["OutputPathPrefix"] = newExperiment.OutputDir + "/" + newExperiment.Name + "/" + file.Name() + "/" + file.Name()
-			newExperiment.Name = experiment.Name + "_" + file.Name()
-			
-			if err != nil {
-				log.Fatal(err)
-			}
-			// Merge base configs with experiment configs
-			subExperiments = append(subExperiments, newExperiment)
-		}
-	} else {
-		subExperiments = append(subExperiments, experiment)
+/**
+* Merge base configs with partial loader configs
+*/
+func mergeConfigurations(baseConfigPath string, experiment config.LoaderExperiment) config.LoaderConfiguration {
+	// Read base configuration
+	baseConfigByteValue, err := os.ReadFile(baseConfigPath)
+	if err != nil {
+		log.Fatal(err)
 	}
-	return subExperiments
+	log.Debug("Experiment configuration ", experiment.Config)
+	var mergedConfig config.LoaderConfiguration
+	// Unmarshal base configuration
+	err = json.Unmarshal(baseConfigByteValue, &mergedConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Debug("Base configuration ", mergedConfig)
+	
+	// merge experiment config onto base config
+	experimentConfigBytes, _ := json.Marshal(experiment.Config)
+	err = json.Unmarshal(experimentConfigBytes, &mergedConfig);
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Debug("Merged configuration ", mergedConfig)
+
+	return mergedConfig
 }
 
 /**
@@ -210,7 +275,6 @@ func performCleanup() {
 	cmd.Run()
 }
 
-
 func logStdOutput(stdPipe io.ReadCloser, logFile *os.File) {
 
     scanner := bufio.NewScanner(stdPipe)
@@ -245,6 +309,7 @@ func logStdOutput(stdPipe io.ReadCloser, logFile *os.File) {
 		}
 	}
 }
+
 func logStdError(stdPipe io.ReadCloser, logFile *os.File) {
 	scanner := bufio.NewScanner(stdPipe)
 	for scanner.Scan() {
@@ -257,37 +322,6 @@ func logStdError(stdPipe io.ReadCloser, logFile *os.File) {
 		}
 		log.Error(m)
 	}
-}
-
-// Merge base configs with experiment configs
-func mergeConfigurations(baseConfigPath string, experiment config.LoaderExperiment) config.LoaderConfiguration {
-	// Read base configuration
-	baseConfigByteValue, err := os.ReadFile(baseConfigPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Debug("Experiment configuration ", experiment.Config)
-	var mergedConfig config.LoaderConfiguration
-	err = json.Unmarshal(baseConfigByteValue, &mergedConfig)
-	if err != nil {
-		log.Fatal(err)
-	}
-	
-	log.Debug("Base configuration ", mergedConfig)
-	// check if experiment config has a field: OutputPathPrefix
-	if _, ok := experiment.Config["OutputPathPrefix"]; !ok {
-		experiment.Config["OutputPathPrefix"] = "data/out/" +experiment.Name 
-	}
-	experiment.Config["OutputPathPrefix"] = experiment.Config["OutputPathPrefix"].(string) + "_" + time.Now().Format("Jan02_1504")
-
-	experimentConfigBytes, _ := json.Marshal(experiment.Config)
-	err = json.Unmarshal(experimentConfigBytes, &mergedConfig);
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Debug("Merged configuration ", mergedConfig)
-
-	return mergedConfig
 }
 
 func writeExperimentConfigToTempFile(experimentConfig config.LoaderConfiguration, fileWritePath string) {

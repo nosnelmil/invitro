@@ -68,11 +68,18 @@ type MutliLoaderConfiguration struct {
 type LoaderExperiment struct {
 	Config  		map[string]interface{}	`json:"Config"`
 	Name    		string           		`json:"Name"`
+	// A combination of format and values or just dir should be specified
+	TracesDir 		string 					`json:"TracesDir"`
+
+	TracesFormat 	string 					`json:"TracesFormat"`
+	TraceValues 	[]interface{}			`json:"TraceValues"`
+
+	// OutputDir needs to be specified if either TracesDir, format or values are defined
+	OutputDir 		string 					`json:"OutputDir"`
+	// Optional
 	Verbosity		string 			   		`json:"Verbosity"`
 	IatGeneration 	bool 					`json:"IatGeneration"`
 	Generated 		bool 					`json:"Generated"`
-	TracesDir 		string 					`json:"TracesDir"`
-	OutputDir 		string 					`json:"OutputDir"`
 	PreScriptPath 	string 					`json:"PreScriptPath"`
 	PostScriptPath 	string 					`json:"PostScriptPath"`
 }
