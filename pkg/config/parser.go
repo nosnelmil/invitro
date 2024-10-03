@@ -63,6 +63,9 @@ type MutliLoaderConfiguration struct {
 	BaseConfigPath  string             	`json:"BaseConfigPath"`
 	PreScriptPath 	string 				`json:"PreScriptPath"`
 	PostScriptPath 	string 				`json:"PostScriptPath"`
+	MasterNode 		string 				`json:"MasterNode"`
+	AutoScalerNode 	string 				`json:"AutoScalerNode"`
+	ActivatorNode 	string 				`json:"ActivatorNode"`
 }
 
 type LoaderExperiment struct {

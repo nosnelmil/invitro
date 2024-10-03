@@ -71,6 +71,8 @@ func main() {
 			prepareExperiment(multiLoaderConfig, subExperiment)		
 			// Call loader.go
 			runExperiment(subExperiment)
+			// Collect logs
+			collateLogs(multiLoaderConfig, subExperiment)
 			// Perform cleanup
 			performCleanup()
 		}
@@ -128,7 +130,6 @@ func unpackExperiment(experiment config.LoaderExperiment) []config.LoaderExperim
 			DeepCopy(experiment, &newExperiment)
 			
 			tracePath := strings.Replace(experiment.TracesFormat, TRACE_FORMAT_STRING, fmt.Sprintf("%v", traceValue), -1)
-			log.Info("TRACE PATH", tracePath)
 			fileName := path.Base(tracePath)
 			// Set new experiment configs based on trace value
 			newExperiment.Config["TracePath"] = tracePath
@@ -263,7 +264,26 @@ func runExperiment(experiment config.LoaderExperiment) {
 		break
 	}
 
-	log.Info(experiment.Name, " completed")
+	log.Info("Completed ", experiment.Name)
+}
+
+func collateLogs(multiConfig config.MutliLoaderConfiguration, experimentConfig config.LoaderExperiment) {
+	// collate logs
+	log.Info("Collating logs")
+	experimentDir := path.Base(experimentConfig.Config["OutputPathPrefix"].(string))
+	// Create autoscaler log directory
+	autoScalerLogDir := path.Join(experimentDir, "autoscaler")
+	err := os.MkdirAll(autoScalerLogDir, rwxr_xr_x)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Retrieve auto scaler logs
+	runCommand(multiConfig.AutoScalerNode, "scp" + multiConfig.AutoScalerNode + ":/var/log/pods/knative-serving_autoscaler-*/autoscaler/* " + autoScalerLogDir)
+}
+
+func runCommand(ip string, command string){
+	cmd := exec.Command("ssh", ip, command)
+	cmd.Run()
 }
 
 func performCleanup() {

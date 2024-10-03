@@ -14,24 +14,12 @@
             "TraceValues": [],
             "PreScriptPath": "",
             "PostScriptPath": ""
-        },
-        {
-            "Name": "experiment2",
-            "Config": {
-                "ExperimentDuration": 1
-            },
-            "IatGeneration": false,
-            "Generated": false,
-            "Verbosity": "info",
-            "TracesDir": "",
-            "TracesFormat": "data/traces/multi-exp-test/example_{}_test",
-            "TraceValues": [1,"2",3.1],
-            "OutputDir": "data/out/multi-test",
-            "PreScriptPath": "",
-            "PostScriptPath": ""
-        }      
+        }    
     ],
     "PreScriptPath": "",
     "PostScriptPath": "",
-    "BaseConfigPath": "cmd/multi_loader/base_loader_config.json"
+    "BaseConfigPath": "cmd/multi_loader/base_loader_config.json",
+    "MasterNode": "Lenson@pc745.emulab.net",
+    "AutoScalerNode": "Lenson@pc745.emulab.net",
+    "ActivatorNode": "Lenson@pc745.emulab.net"
 }
