@@ -94,7 +94,6 @@ func unpackExperiment(experiment config.LoaderExperiment) []config.LoaderExperim
 	log.Info("Unpacking experiment ", experiment.Name)
 	subExperiments := []config.LoaderExperiment{}
 
-	log.Info("TEST", experiment.TracesDir, experiment.TracesFormat, experiment.TraceValues)
 	// If user specified a trace directory
 	if experiment.TracesDir != "" {
 		files, err := os.ReadDir(experiment.TracesDir)
@@ -153,6 +152,7 @@ func unpackExperiment(experiment config.LoaderExperiment) []config.LoaderExperim
 	}
 	return subExperiments
 }
+
 func prepareExperiment(multiLoaderConfig config.MutliLoaderConfiguration, subExperiment config.LoaderExperiment) {
 	log.Info("Preparing ", subExperiment.Name)
 	// Merge base configs with experiment configs
@@ -214,14 +214,9 @@ func runExperiment(experiment config.LoaderExperiment) {
 	experimentOutPutDirArr := strings.Split(experiment.Config["OutputPathPrefix"].(string), "/")
 	experimentOutPutDirArr = experimentOutPutDirArr[:len(experimentOutPutDirArr)-1]
 	experimentOutPutDir := strings.Join(experimentOutPutDirArr, "/")
-	logFilePath := experimentOutPutDir+"/loader.log"
 
-	if _, err := os.Stat(logFilePath); err == nil {
-		err := os.Remove(logFilePath)
-		if err != nil {
-			log.Error(err)
-		}
-	}
+	logFilePath := path.Join(experimentOutPutDir, "loader.log")
+
 	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		log.Fatal(err)
@@ -270,7 +265,7 @@ func runExperiment(experiment config.LoaderExperiment) {
 func collateLogs(multiConfig config.MutliLoaderConfiguration, experimentConfig config.LoaderExperiment) {
 	// collate logs
 	log.Info("Collating logs")
-	experimentDir := path.Base(experimentConfig.Config["OutputPathPrefix"].(string))
+	experimentDir := path.Dir(experimentConfig.Config["OutputPathPrefix"].(string))
 	// Create autoscaler log directory
 	autoScalerLogDir := path.Join(experimentDir, "autoscaler")
 	err := os.MkdirAll(autoScalerLogDir, rwxr_xr_x)
@@ -283,7 +278,11 @@ func collateLogs(multiConfig config.MutliLoaderConfiguration, experimentConfig c
 
 func runCommand(ip string, command string){
 	cmd := exec.Command("ssh", ip, command)
-	cmd.Run()
+	out, err := cmd.CombinedOutput()
+	log.Info(string(out))
+	if err != nil {
+		log.Error(err)
+	}
 }
 
 func performCleanup() {
