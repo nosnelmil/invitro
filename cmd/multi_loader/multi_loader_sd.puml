@@ -1,23 +1,30 @@
 @startuml multi_loader_sd
 
-participant multi_loader as ml
-participant loader as l
+participant "multi_loader (local node)" as ml
+participant "loader (loader node)" as l
+participant "master node" as mas
 
 autonumber
 ml++
 ml -> ml: read multi_loader config file
-ml -> ml: run global prescript
+ml -> ml: validate config
+ml -> l: run global prescript
+
 loop for each experiment
   alt tracesDir not empty
     ml->ml: create sub experiments based on each file
+  else tracesFormat & traceValues is not empty
+    ml->ml: create sub experiments based on tracesFormat & traceValues
   else
     ml->ml: experiment will be sole sub experiment
   end
-  ml->ml: run experiment level prescript
+  ml->l: run experiment level prescript
   loop for each sub experiment
     ml->ml: merge base config with sub experiment's config
-    ml->ml: create output dirs
+    ml->ml: create output dirs (local)
+    ml->l: prepare output dirs (remote)
     ml->ml: write merged config to temp file
+    ml->l: transfer temp file to loader node
     ml->ml: create log file
     loop for NUM_OF_RETRIES
       alt current iteration > 0
@@ -30,10 +37,15 @@ loop for each experiment
       break if no error
       end
     end
-    ml->ml: perform cleanup (remove tempfiles & make clean)
+    ml->l++: retrieve output files
+    return output files
+    ml->mas++: retrieve autoscaler,activator logs & prometheus snapshot
+    return requested files
+    ml->ml: perform cleanup (remove tempfiles)
+    ml->l: perform cleanup (remove tempfiles & make clean)
   end
-  ml->ml: run experiment level postscript
+  ml->l: run experiment level postscript
 end
-ml->ml: run global level postscript
+ml->l: run global level postscript
 
 @enduml
