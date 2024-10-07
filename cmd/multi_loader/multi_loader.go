@@ -225,6 +225,7 @@ func prepareExperiment(subExperiment config.LoaderExperiment) {
 	writeExperimentConfigToTempFile(experimentConfig, EXPERIMENT_TEMP_CONFIG_PATH)
 
 	// Reset TOP
+	runTOPCommands(outputDir, false)
 }
 
 func runTOPCommands(experimentPath string, collect bool) {
@@ -237,16 +238,15 @@ func runTOPCommands(experimentPath string, collect bool) {
 		nodes = append(nodes, activatorNode)
 	}
 	nodes = append(nodes, workerNodes...)
-
 	for _, node := range nodes {
 		wg.Add(1)
 		go func(node string) {
 			defer wg.Done()
 			// kill all instances of top
-			runRemoteCommand(node, "killall top")
+			runRemoteCommand(node, "if pgrep top >/dev/null; then killall top; fi")
 			if !collect {
 				// run top in the background
-				runRemoteCommand(node, "top -b -d 15 -c -w 512 > top.txt")
+				runRemoteCommand(node, "top -b -d 15 -c -w 512 > top.txt 2>&1 &")
 			} else {
 				copyRemoteFile(node, "top.txt", path.Join(experimentPath, "top_" + node + ".txt"))
 			}
@@ -353,6 +353,10 @@ func collateLogs(experimentConfig config.LoaderExperiment) {
 	// collate logs
 	log.Info("Collating logs")
 	experimentDir := path.Dir(experimentConfig.Config["OutputPathPrefix"].(string))
+	
+	// Collect top logs
+	runTOPCommands(experimentDir, true)
+
 	// Create autoscaler log directory
 	autoScalerLogDir := path.Join(experimentDir, "autoscaler")
 	activatorLogDir := path.Join(experimentDir, "activator")
