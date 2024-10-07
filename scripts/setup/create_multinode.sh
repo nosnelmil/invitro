@@ -213,6 +213,25 @@ function copy_k8s_certificates() {
     rm ./kubeconfig
 }
 
+function copy_ssh_key() {
+    LOADER_NODE=$1
+    ALL_NODES="$MASTER_NODE $@" 
+
+    echo "TEST LOADER NODE $LOADER_NODE"
+    echo "TEST OTHERS $OTHERS"
+    # Generate SSH key pair for loader node
+    server_exec $LOADER_NODE 'echo -e "\n\n\n" | ssh-keygen -t rsa > /dev/null'
+    server_exec $LOADER_NODE 'chmod 600 ~/.ssh/id_rsa'
+    server_exec $LOADER_NODE 'eval "$(ssh-agent -s)" && ssh-add'
+    # copy authorized keys to master node 
+    rsync $LOADER_NODE:~/.ssh/id_rsa.pub ./loader_sshpub
+    for node in $ALL_NODES; do
+        cat ./loader_sshpub | ssh $node 'cat >> ~/.ssh/authorized_keys'
+    done
+    # clean up
+    rm ./loader_sshpub
+}
+
 ###############################################
 ######## MAIN SETUP PROCEDURE IS BELOW ########
 ###############################################
@@ -246,6 +265,8 @@ function copy_k8s_certificates() {
 
     # Copy API server certificates from master to each worker node
     copy_k8s_certificates "$@"
+
+    copy_ssh_key $@
 
     server_exec $MASTER_NODE 'cd loader; bash scripts/setup/patch_init_scale.sh'
 
