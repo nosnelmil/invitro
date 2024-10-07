@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -32,6 +33,7 @@ const (
 	LOADER_PATH = "cmd/loader.go"
 	// LOADER_PATH = "cmd/test/test.go"
 	EXPERIMENT_TEMP_CONFIG_PATH = "cmd/multi_loader/current_running_config.json"
+	INVITRO_BASE_PATH = "~/loader/"
 	NUM_OF_RETRIES = 2
 	TIME_FORMAT = "Jan_02_1504"
 	TRACE_FORMAT_STRING = "{}"
@@ -40,15 +42,17 @@ const (
 var (
     multiLoaderConfigPath    = flag.String("multiLoaderConfig", "cmd/multi_loader/multi_loader_config.json", "Path to multi loader configuration file")
     verbosity     = flag.String("verbosity", "info", "Logging verbosity - choose from [info, debug, trace]")
-	runRemote	 = flag.Bool("runRemote", true, "Run loader on remote node")
+	runRemote	 = flag.Bool("runRemote", false, "Run loader on remote node")
+	multiLoaderConfig = config.MutliLoaderConfiguration{}
 	masterNode = ""
 	autoscalerNode = ""
 	activatorNode = ""
 	loaderNode = ""
+	workerNodes = []string{}
 )
 
-// Initialize logger
 func init() {
+	// Initialize logger
     flag.Parse()
 
     log.SetFormatter(&log.TextFormatter{
@@ -65,15 +69,23 @@ func init() {
     default:
         log.SetLevel(log.InfoLevel)
     }
-}
 
-func main() {
-	log.Info("Starting multiloader")
-	multiLoaderConfig := config.ReadMultiLoaderConfigurationFile(*multiLoaderConfigPath)
+	// Initialise global variables
+	multiLoaderConfig = config.ReadMultiLoaderConfigurationFile(*multiLoaderConfigPath)
 	masterNode = multiLoaderConfig.MasterNode
 	autoscalerNode = multiLoaderConfig.AutoScalerNode
 	activatorNode = multiLoaderConfig.ActivatorNode
 	loaderNode = multiLoaderConfig.LoaderNode
+	workerNodes = multiLoaderConfig.WorkerNodes
+}
+
+func main() {
+	log.Info("Starting multiloader")
+	// Check if running remotely
+	if *runRemote {
+		runLoaderRemotely()
+		return
+	}
 	// Check config
 	// checkMultiLoaderConfig(multiLoaderConfig)
 	// Run global prescript
@@ -88,7 +100,7 @@ func main() {
 		// Run each experiment
 		for _, subExperiment := range subExperiments {
 			// Prepare experiment
-			prepareExperiment(multiLoaderConfig, subExperiment)		
+			prepareExperiment(subExperiment)		
 			// Call loader.go
 			runExperiment(subExperiment)
 			// Collect logs
@@ -173,7 +185,31 @@ func unpackExperiment(experiment config.LoaderExperiment) []config.LoaderExperim
 	return subExperiments
 }
 
-func prepareExperiment(multiLoaderConfig config.MutliLoaderConfiguration, subExperiment config.LoaderExperiment) {
+func runLoaderRemotely() {
+	log.Info("Running loader on remote node")
+	// Sync multi-loader configurations
+	log.Info("Syncing multi-loader configurations")
+	syncToRemoteFile(loaderNode, "./cmd/multi_loader/", INVITRO_BASE_PATH + "cmd/multi_loader")
+	// Sync trace files
+	log.Info("Syncing trace files")
+	syncToRemoteFile(loaderNode, "./data/traces/", INVITRO_BASE_PATH + "data/traces")
+	// Sync scripts
+	log.Info("Syncing scripts")
+	syncToRemoteFile(loaderNode, "./scripts/", INVITRO_BASE_PATH + "scripts")
+
+	// Run loader.go on remote node
+	log.Info("Running loader.go on remote node")
+
+	// Run tmux session
+	tmuxSession := time.Now().Format("2006-01-02_15_04_05") + "_multi_loader" 
+	runRemoteCommand(loaderNode, "tmux new-session -d -s " + tmuxSession)
+	runRemoteCommand(loaderNode, "tmux send-keys -t " + tmuxSession + " 'cd " + INVITRO_BASE_PATH + " && source /etc/profile && go run cmd/multi_loader/multi_loader.go' C-m")
+	log.Info("Multi loader running on remote node " + loaderNode + " (tmux session: ", tmuxSession, ")")
+	log.Info(fmt.Sprintf(`To attach to the session, run:
+		ssh -t %s 'tmux a -t %s'`, loaderNode, tmuxSession))
+}
+
+func prepareExperiment(subExperiment config.LoaderExperiment) {
 	log.Info("Preparing ", subExperiment.Name)
 	// Merge base configs with experiment configs
 	experimentConfig := mergeConfigurations(multiLoaderConfig.BaseConfigPath, subExperiment)
@@ -181,24 +217,44 @@ func prepareExperiment(multiLoaderConfig config.MutliLoaderConfiguration, subExp
 	// Create output directory
 	outputDirs := strings.Split(experimentConfig.OutputPathPrefix, "/")
 	outputDir := path.Join(outputDirs[:len(outputDirs)-1]...)
-	if *runRemote {
-		runRemoteCommand(loaderNode, "mkdir -p " + "invitro/" + outputDir)
-	}
 	err := os.MkdirAll(outputDir, rwxr_xr_x)
 	if err != nil {
 		log.Fatal(err)
 	}
 	// Write experiment configs to temp file
 	writeExperimentConfigToTempFile(experimentConfig, EXPERIMENT_TEMP_CONFIG_PATH)
-	if *runRemote {
-		log.Info("Copying experiment config to loader node")
-		cmd := exec.Command("scp", EXPERIMENT_TEMP_CONFIG_PATH, loaderNode + ":invitro/" + path.Dir(EXPERIMENT_TEMP_CONFIG_PATH))
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			log.Error(string(out))
-			log.Fatal(err)
-		}
+
+	// Reset TOP
+}
+
+func runTOPCommands(experimentPath string, collect bool) {
+	var wg sync.WaitGroup
+	nodes := []string{masterNode, loaderNode}
+	if autoscalerNode != masterNode {
+		nodes = append(nodes, autoscalerNode)
 	}
+	if activatorNode != masterNode {
+		nodes = append(nodes, activatorNode)
+	}
+	nodes = append(nodes, workerNodes...)
+
+	for _, node := range nodes {
+		wg.Add(1)
+		go func(node string) {
+			defer wg.Done()
+			// kill all instances of top
+			runRemoteCommand(node, "killall top")
+			if !collect {
+				// run top in the background
+				runRemoteCommand(node, "top -b -d 15 -c -w 512 > top.txt")
+			} else {
+				copyRemoteFile(node, "top.txt", path.Join(experimentPath, "top_" + node + ".txt"))
+			}
+				
+		}(node)
+	}
+
+	wg.Wait() 
 }
 
 /**
@@ -261,22 +317,14 @@ func runExperiment(experiment config.LoaderExperiment) {
 			logFile.WriteString("==================================RETRYING==================================\n")
 			experimentVerbosity = "debug"
 		}
-		var cmd *exec.Cmd
-		if *runRemote {
-			cmd = exec.Command("ssh", loaderNode, "pushd ~/invitro && source /etc/profile && go run", LOADER_PATH,
-				"--config=" + EXPERIMENT_TEMP_CONFIG_PATH,
-				"--verbosity=" + experimentVerbosity,
-				"--iatGeneration=" + strconv.FormatBool(experiment.IatGeneration),
-				"--generated=" + strconv.FormatBool(experiment.Generated))
-		}else{
-			// Run loader.go with experiment configs
-			cmd = exec.Command("go", "run", LOADER_PATH,
-				"--config=" + EXPERIMENT_TEMP_CONFIG_PATH,
-				"--verbosity=" + experimentVerbosity,
-				"--iatGeneration=" + strconv.FormatBool(experiment.IatGeneration),
-				"--generated=" + strconv.FormatBool(experiment.Generated))
+		
+		// Run loader.go with experiment configs
+		cmd := exec.Command("go", "run", LOADER_PATH,
+			"--config=" + EXPERIMENT_TEMP_CONFIG_PATH,
+			"--verbosity=" + experimentVerbosity,
+			"--iatGeneration=" + strconv.FormatBool(experiment.IatGeneration),
+			"--generated=" + strconv.FormatBool(experiment.Generated))
 	
-		}
 		stdout, _ := cmd.StdoutPipe()
 		stderr, _ := cmd.StderrPipe()
 
@@ -322,8 +370,6 @@ func collateLogs(experimentConfig config.LoaderExperiment) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// Copy results
-	copyRemoteFile(loaderNode, "~/invitro/" + experimentConfig.Config["OutputPathPrefix"].(string)+"*", experimentDir)
 	// Retrieve auto scaler logs
 	copyRemoteFile(autoscalerNode, "/var/log/pods/knative-serving_autoscaler-*/autoscaler/*", autoScalerLogDir)
 	// Retrieve activator logs
@@ -347,9 +393,8 @@ func collateLogs(experimentConfig config.LoaderExperiment) {
 		if prometheusSnapshot.Status != "success" {
 			if i == 1{
 				log.Error("Prometheus Snapshot failed")
-				break
 			}else{
-				log.Info("Prometheus Snapshot not ready. Retry...")
+				log.Info("Prometheus Snapshot not ready. Retrying...")
 			}
 			i--
 			continue
@@ -370,36 +415,19 @@ func collateLogs(experimentConfig config.LoaderExperiment) {
 
 func runRemoteCommand(ip string, command string){
 	cmd := exec.Command("ssh", "-oStrictHostKeyChecking=no", "-p 22", ip, command)
-	stdout, _ := cmd.StdoutPipe()
-	stderr, _ := cmd.StderrPipe()
-	cmd.Start()
-	go func () {
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			m := scanner.Text()
-			log.Info(m)
-		}
-	}()
-	go func () {
-		scanner := bufio.NewScanner(stderr)
-		for scanner.Scan() {
-			m := scanner.Text()
-			log.Error(m)
-		}
-	}()
-	cmd.Wait()
+	
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err:= cmd.Run(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func performCleanup() {
 	log.Info("Runnning Cleanup")
-	if *runRemote {
-		runRemoteCommand(loaderNode ,"rm invitro/" + EXPERIMENT_TEMP_CONFIG_PATH)
-		runRemoteCommand(loaderNode ,"pushd invitro && source /etc/profile && make clean")
-	}else{
-		// Run make clean
-		cmd := exec.Command("make", "clean")
-		cmd.Run()
-	}
+	// Run make clean
+	cmd := exec.Command("make", "clean")
+	cmd.Run()
 	// Remove temp file
 	os.Remove(EXPERIMENT_TEMP_CONFIG_PATH)
 }
@@ -487,6 +515,15 @@ func copyRemoteFile(remoteNode, src string, dest string) {
 	}
 }
 
+func syncToRemoteFile(remoteNode string, src string, dest string) {
+	cmd := exec.Command("rsync", "-a", src, remoteNode + ":" + dest)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err:= cmd.Run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
 // Surface level check
 func checkMultiLoaderConfig(multiLoaderConfig config.MutliLoaderConfiguration) {
 	log.Info("Checking multi-loader configuration")
@@ -529,7 +566,7 @@ func checkNode(node string) {
 	if node == "" {
 		log.Fatal("Missing Master/AutoScaler/Activator/Loader node in configuration file")
 	}
-	cmd := exec.Command("ssh -oStrictHostKeyChecking=no -p 22", node, "exit")
+	cmd := exec.Command("ssh -oStrictHostKeyChecking=no -p 22", node, "'exit'")
 	// -oStrictHostKeyChecking=no -p 22
 	out, err := cmd.CombinedOutput()
 	if bytes.Contains(out, []byte("Permission denied")) || err != nil {

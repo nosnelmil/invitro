@@ -1,21 +1,6 @@
 {
     "Experiments": [
-        {
-            "Name": "experiment1",
-            "Config": {
-                "TracePath": "data/traces/example",
-                "OutputPathPrefix": "data/out/experiment1/single",
-                "ExperimentDuration": 1
-            },
-            "IatGeneration": false,
-            "Generated": false,
-            "Verbosity": "info",
-            "TracesFormat": "",
-            "TraceValues": [],
-            "PreScriptPath": "",
-            "PostScriptPath": ""
-        },
-        {
+       {
             "Name": "experiment2",
             "Config": {
                 "ExperimentDuration": 1
@@ -25,17 +10,18 @@
             "Verbosity": "info",
             "TracesDir": "",
             "TracesFormat": "data/traces/multi-exp-test/example_{}_test",
-            "TraceValues": [1,"2",3.1],
+            "TraceValues": [1],
             "OutputDir": "data/out/multi-test",
             "PreScriptPath": "",
             "PostScriptPath": ""
-        }      
+        }   
     ],
     "PreScriptPath": "",
     "PostScriptPath": "",
     "BaseConfigPath": "cmd/multi_loader/base_loader_config.json",
-    "MasterNode": "Lenson@hp146.utah.cloudlab.us",
-    "AutoScalerNode": "Lenson@hp146.utah.cloudlab.us",
-    "ActivatorNode": "Lenson@hp146.utah.cloudlab.us",
-    "LoaderNode": "Lenson@hp150.utah.cloudlab.us"
+    "MasterNode": "Lenson@pc836.emulab.net",
+    "AutoScalerNode": "Lenson@pc836.emulab.net",
+    "ActivatorNode": "Lenson@pc836.emulab.net",
+    "LoaderNode": "Lenson@pc792.emulab.net",
+    "WorkerNodes": ["Lenson@pc809.emulab.net"]
 }

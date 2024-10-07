@@ -67,6 +67,7 @@ type MutliLoaderConfiguration struct {
 	AutoScalerNode 	string 				`json:"AutoScalerNode"`
 	ActivatorNode 	string 				`json:"ActivatorNode"`
 	LoaderNode 		string 				`json:"LoaderNode"`
+	WorkerNodes 	[]string 			`json:"WorkerNodes"`
 }
 
 type LoaderExperiment struct {
