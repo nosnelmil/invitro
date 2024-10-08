@@ -223,7 +223,7 @@ function copy_ssh_key() {
     server_exec $LOADER_NODE 'echo -e "\n\n\n" | ssh-keygen -t rsa > /dev/null'
     server_exec $LOADER_NODE 'chmod 600 ~/.ssh/id_rsa'
     server_exec $LOADER_NODE 'eval "$(ssh-agent -s)" && ssh-add'
-    # copy authorized keys to master node 
+    # Copy public key into all nodes authorized_keys
     rsync $LOADER_NODE:~/.ssh/id_rsa.pub ./loader_sshpub
     for node in $ALL_NODES; do
         cat ./loader_sshpub | ssh $node 'cat >> ~/.ssh/authorized_keys'

@@ -354,15 +354,18 @@ func collateLogs(experimentConfig config.LoaderExperiment) {
 	log.Info("Collating logs")
 	experimentDir := path.Dir(experimentConfig.Config["OutputPathPrefix"].(string))
 	
-	// Collect top logs
-	runTOPCommands(experimentDir, true)
-
-	// Create autoscaler log directory
+	
+	// Create log directories
+	topDir := path.Join(experimentDir, "top")
 	autoScalerLogDir := path.Join(experimentDir, "autoscaler")
 	activatorLogDir := path.Join(experimentDir, "activator")
 	prometheusSnapshotDir := path.Join(experimentDir, "prometheus_snapshot")
-
-	err := os.MkdirAll(autoScalerLogDir, rwxr_xr_x)
+	
+	err := os.MkdirAll(topDir, rwxr_xr_x)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = os.MkdirAll(autoScalerLogDir, rwxr_xr_x)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -374,6 +377,8 @@ func collateLogs(experimentConfig config.LoaderExperiment) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// Collect top logs
+	runTOPCommands(topDir, true)
 	// Retrieve auto scaler logs
 	copyRemoteFile(autoscalerNode, "/var/log/pods/knative-serving_autoscaler-*/autoscaler/*", autoScalerLogDir)
 	// Retrieve activator logs
