@@ -213,7 +213,8 @@ function copy_k8s_certificates() {
     rm ./kubeconfig
 }
 
-function copy_ssh_key() {
+# Distributes loader public sshkey to all other nodes
+function distribute_loader_ssh_key() {
     LOADER_NODE=$1
     ALL_NODES="$MASTER_NODE $@" 
 
@@ -266,7 +267,7 @@ function copy_ssh_key() {
     # Copy API server certificates from master to each worker node
     copy_k8s_certificates "$@"
 
-    copy_ssh_key $@
+    distribute_loader_ssh_key $@
 
     server_exec $MASTER_NODE 'cd loader; bash scripts/setup/patch_init_scale.sh'
 
