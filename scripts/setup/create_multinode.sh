@@ -267,7 +267,7 @@ function distribute_loader_ssh_key() {
     # Copy API server certificates from master to each worker node
     copy_k8s_certificates "$@"
 
-    distribute_loader_ssh_key $@
+    distribute_loader_ssh_key "$@"
 
     server_exec $MASTER_NODE 'cd loader; bash scripts/setup/patch_init_scale.sh'
 
