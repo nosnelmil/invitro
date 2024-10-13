@@ -45,11 +45,11 @@ var (
     verbosity     = flag.String("verbosity", "info", "Logging verbosity - choose from [info, debug, trace]")
 	syncConfig	 = flag.Bool("syncConfig", false, "sync loader on remote node")
 	multiLoaderConfig = config.MutliLoaderConfiguration{}
-	masterNode = ""
-	autoscalerNode = ""
-	activatorNode = ""
-	loaderNode = ""
-	workerNodes = []string{}
+	masterNode = multiLoaderConfig.MasterNode
+	autoscalerNode = multiLoaderConfig.AutoScalerNode
+	activatorNode = multiLoaderConfig.ActivatorNode
+	loaderNode = multiLoaderConfig.LoaderNode
+	workerNodes = multiLoaderConfig.WorkerNodes
 	dryRunSuccess = true
 )
 
@@ -101,42 +101,51 @@ func main() {
 
 func determineNodes() {
 	// Determine master loader and worker nodes
-    cmd := exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=worker | awk '{print $6}'")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Fatal(err)
-	}
-	workerNodes = strings.Split(strings.Trim(string(out), " \n"), "\n")
-	for i := range workerNodes {
-		workerNodes[i] = strings.TrimSpace(workerNodes[i])
+	if len(workerNodes) == 0 {
+		cmd := exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=worker | awk '{print $6}'")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Fatal(err)
+		}
+		workerNodes = strings.Split(strings.Trim(string(out), " \n"), "\n")
+		for i := range workerNodes {
+			workerNodes[i] = strings.TrimSpace(workerNodes[i])
+		}
 	}
 	log.Debug("Worker nodes: ", workerNodes)
 
-	cmd = exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=master | awk '{print $6}'")
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		log.Fatal(err)
+	if masterNode == "" {
+		cmd := exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=master | awk '{print $6}'")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Fatal(err)
+		}
+		masterNode = strings.Trim(string(out), " \n")
 	}
-	masterNode = strings.Trim(string(out), " \n")
 	log.Debug("Master node: ", masterNode)
-	
-	cmd = exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=monitoring | awk '{print $6}'")
-	out, err = cmd.CombinedOutput()
-	if err != nil {
-		log.Fatal(err)
+
+	if loaderNode == "" {
+		cmd := exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=monitoring | awk '{print $6}'")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Fatal(err)
+		}
+		loaderNode = strings.Trim(string(out), " \n")
 	}
-	loaderNode = strings.Trim(string(out), " \n")
 	log.Debug("Loader node: ", loaderNode)
-
+	
 	// Determine autoscaler node & activator node
-	autoscalerNode = determineSpecialPods("autoscaler")
+	if autoscalerNode == "" {
+		autoscalerNode = determineOtherPods("autoscaler")
+	}
 	log.Debug("Autoscaler node: ", autoscalerNode)
-	activatorNode = determineSpecialPods("activator")
+	if activatorNode == "" {
+		activatorNode = determineOtherPods("activator")
+	}
 	log.Debug("Activator node: ", activatorNode)
-
 }
 
-func determineSpecialPods(podNamePrefix string) string {
+func determineOtherPods(podNamePrefix string) string {
 	// Get the pod alias
 	cmdPodName := exec.Command("sh", "-c", fmt.Sprintf("kubectl get pods -n knative-serving --no-headers | grep %s- | awk '{print $1}'", podNamePrefix))
 	out, err := cmdPodName.CombinedOutput()
