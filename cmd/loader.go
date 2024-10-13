@@ -51,6 +51,7 @@ var (
 	verbosity     = flag.String("verbosity", "info", "Logging verbosity - choose from [info, debug, trace]")
 	iatGeneration = flag.Bool("iatGeneration", false, "Generate iats only or run invocations as well")
 	generated     = flag.Bool("generated", false, "True if iats were already generated")
+	dryRun		  = flag.Bool("dryRun", false, "Dry run mode - do not deploy functions or generate invocations")
 )
 
 func init() {
@@ -186,6 +187,8 @@ func runTraceMode(cfg *config.LoaderConfiguration, iatOnly bool, generated bool)
 
 		Functions: functions,
 	})
-
+	if !*dryRun {
+		return
+	}
 	experimentDriver.RunExperiment(iatOnly, generated)
 }
