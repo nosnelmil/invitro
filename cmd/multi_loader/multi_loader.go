@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path"
@@ -46,10 +47,10 @@ var (
 	syncConfig	 = flag.Bool("syncConfig", false, "sync loader on remote node")
 	multiLoaderConfig = config.MutliLoaderConfiguration{}
 	masterNode = multiLoaderConfig.MasterNode
-	autoscalerNode = multiLoaderConfig.AutoScalerNode
-	activatorNode = multiLoaderConfig.ActivatorNode
-	loaderNode = multiLoaderConfig.LoaderNode
-	workerNodes = multiLoaderConfig.WorkerNodes
+	autoscalerNode = ""
+	activatorNode = ""
+	loaderNode = ""
+	workerNodes = []string{}
 	dryRunSuccess = true
 )
 
@@ -74,6 +75,11 @@ func init() {
 
 	// Initialise global variables
 	multiLoaderConfig = config.ReadMultiLoaderConfigurationFile(*multiLoaderConfigPath)
+	masterNode = multiLoaderConfig.MasterNode
+	autoscalerNode = multiLoaderConfig.AutoScalerNode
+	activatorNode = multiLoaderConfig.ActivatorNode
+	loaderNode = multiLoaderConfig.LoaderNode
+	workerNodes = multiLoaderConfig.WorkerNodes
 }
 
 func main() {
@@ -85,6 +91,9 @@ func main() {
 	}
 	// Determine nodes
 	determineNodes()
+
+	// Check multi loader configuration
+	checkMultiLoaderConfig()
 	// Dry run
 	log.Info("Starting dry run")
 	runMultiLoader(true)
@@ -637,13 +646,16 @@ func syncToRemoteFile(remoteNode string, src string, dest string) {
 }
 
 // Surface level check
-func checkMultiLoaderConfig(multiLoaderConfig config.MutliLoaderConfiguration) {
+func checkMultiLoaderConfig() {
 	log.Info("Checking multi-loader configuration")
 	// check if nodes if executeRemotely is true
-	checkNode(multiLoaderConfig.MasterNode)
-	checkNode(multiLoaderConfig.AutoScalerNode)
-	checkNode(multiLoaderConfig.ActivatorNode)
-	checkNode(multiLoaderConfig.LoaderNode)
+	checkNode(masterNode)
+	checkNode(autoscalerNode)
+	checkNode(activatorNode)
+	checkNode(loaderNode)
+	for _, node := range workerNodes {
+		checkNode(node)
+	}
 	log.Info("Nodes are reachable")
 	// Check if all paths are valid
 	checkPath(multiLoaderConfig.BaseConfigPath)
@@ -662,11 +674,13 @@ func checkMultiLoaderConfig(multiLoaderConfig config.MutliLoaderConfiguration) {
 		// if configs does not have TracePath or OutputPathPreix, either TracesDir or (TracesFormat and TraceValues) should be defined along with OutputDir
 		if experiment.TracesDir == "" && (experiment.TracesFormat == "" || len(experiment.TraceValues) == 0) {
 			if _, ok := experiment.Config["TracePath"]; !ok {
-				log.Fatal("Missing TracePath in experiment ", experiment.Name)
+				log.Fatal("Missing one of TracesDir, TracesFormat & TraceValues, Config.TracePath in multi_loader_config ", experiment.Name)
 			}
 		}
-		if _, ok := experiment.Config["OutputPathPrefix"]; !ok {
-			log.Fatal("Missing OutputPathPrefix in experiment ", experiment.Name)
+		if experiment.OutputDir == "" {
+			if _, ok := experiment.Config["OutputPathPrefix"]; !ok {
+				log.Fatal("Missing one of OutputDir or Config.OutputPathPrefix in multi_loader_config ", experiment.Name)
+			}
 		}
 	}
 	log.Info("All experiments configs are valid")
@@ -674,14 +688,17 @@ func checkMultiLoaderConfig(multiLoaderConfig config.MutliLoaderConfiguration) {
 
 func checkNode(node string) {
 	if node == "" {
-		log.Fatal("Missing Master/AutoScaler/Activator/Loader node in configuration file")
+		log.Fatal("Missing Master/AutoScaler/Activator/Loader node")
 	}
-	cmd := exec.Command("ssh -oStrictHostKeyChecking=no -p 22", node, "'exit'")
+	if !isValidIP(node) {
+		log.Fatal("Invalid IP address for node ", node)
+	}
+	cmd := exec.Command("ssh", "-oStrictHostKeyChecking=no", "-p", "22", node, "exit")
 	// -oStrictHostKeyChecking=no -p 22
 	out, err := cmd.CombinedOutput()
 	if bytes.Contains(out, []byte("Permission denied")) || err != nil {
 		log.Error(string(out))
-		log.Fatal("Cant connect to node ", node)
+		log.Fatal("Failed to connect to node ", node)
 	}
 }
 
@@ -693,3 +710,7 @@ func checkPath(path string) {
 	}
 }
 
+func isValidIP(ip string) bool {
+    parsedIP := net.ParseIP(ip)
+    return parsedIP != nil
+}
