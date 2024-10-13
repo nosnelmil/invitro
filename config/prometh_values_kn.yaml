@@ -152,6 +152,8 @@ prometheus:
 
   prometheusSpec:
     scrapeInterval: "15s"
+    additionalArgs:
+      - "--web.enable-admin-api=true"
     nodeAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
         nodeSelectorTerms:
