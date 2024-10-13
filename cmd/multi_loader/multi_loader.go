@@ -50,6 +50,7 @@ var (
 	activatorNode = ""
 	loaderNode = ""
 	workerNodes = []string{}
+	dryRunSuccess = true
 )
 
 func init() {
@@ -87,6 +88,9 @@ func main() {
 	// Dry run
 	log.Info("Starting dry run")
 	runMultiLoader(true)
+	if !dryRunSuccess {
+		log.Fatal("Dry run failed. Exiting...")
+	}
 	log.Info("Dry run completed")
 	log.Info("Running experiments")
 	runMultiLoader(false)
@@ -106,7 +110,7 @@ func determineNodes() {
 	for i := range workerNodes {
 		workerNodes[i] = strings.TrimSpace(workerNodes[i])
 	}
-	log.Info("Worker nodes: ", workerNodes)
+	log.Debug("Worker nodes: ", workerNodes)
 
 	cmd = exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=master | awk '{print $6}'")
 	out, err = cmd.CombinedOutput()
@@ -114,7 +118,7 @@ func determineNodes() {
 		log.Fatal(err)
 	}
 	masterNode = strings.Trim(string(out), " \n")
-	log.Info("Master node: ", masterNode)
+	log.Debug("Master node: ", masterNode)
 	
 	cmd = exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=monitoring | awk '{print $6}'")
 	out, err = cmd.CombinedOutput()
@@ -122,13 +126,13 @@ func determineNodes() {
 		log.Fatal(err)
 	}
 	loaderNode = strings.Trim(string(out), " \n")
-	log.Info("Loader node: ", loaderNode)
+	log.Debug("Loader node: ", loaderNode)
 
 	// Determine autoscaler node & activator node
 	autoscalerNode = determineSpecialPods("autoscaler")
-	log.Info("Autoscaler node: ", autoscalerNode)
+	log.Debug("Autoscaler node: ", autoscalerNode)
 	activatorNode = determineSpecialPods("activator")
-	log.Info("Activator node: ", activatorNode)
+	log.Debug("Activator node: ", activatorNode)
 
 }
 
@@ -414,12 +418,15 @@ func runExperiment(experiment config.LoaderExperiment, dryRun bool) bool {
 		if err != nil {
 			log.Error(err)
 			log.Error("Experiment failed: ", experiment.Name)
-			logFile.WriteString("Experiment failed: " + experiment.Name + "\n")
-			if i == 0 {
+			logFile.WriteString("Experiment failed: " + experiment.Name + ". Error: " + err.Error() + "\n")
+			if i == 0 && !dryRun {
 				log.Info("Retrying experiment ", experiment.Name)
 				logFile.WriteString("==================================RETRYING==================================\n")
 				experimentVerbosity = "debug"
 			} else{
+				// Experiment failed set dry run flag to false
+				dryRunSuccess = false
+				log.Error("Check log file for more information: ", logFilePath)
 				// should not continue with experiment
 				return false
 			}
