@@ -86,8 +86,14 @@ func main() {
 		executeLoaderRemotely()
 		return
 	}
-	// Check config
-	// checkMultiLoaderConfig(multiLoaderConfig)
+	runMultiLoader(true)
+	runMultiLoader(false)
+	// Finish
+	log.Info("All experiments completed")
+	
+}
+
+func runMultiLoader(dryRun bool){
 	// Run global prescript
 	runScript(multiLoaderConfig.PreScriptPath)
 	// Iterate over experiments and run them
@@ -102,22 +108,26 @@ func main() {
 			// Prepare experiment
 			prepareExperiment(subExperiment)		
 			// Call loader.go
-			runExperiment(subExperiment)
+			shouldContinue := runExperiment(subExperiment, dryRun)
 			// Collect logs
-			collateLogs(subExperiment)
+			if !dryRun {
+				collateLogs(subExperiment)
+			}
 			// Perform cleanup
 			performCleanup()
+			if !shouldContinue {
+				log.Info("Experiment failed: ", subExperiment.Name, ". Skipping remaining experiments in study...")
+				break
+			}
 		}
 		// Run post script
 		runScript(experiment.PostScriptPath)
-		if len(subExperiments) > 1 {
+		if len(subExperiments) > 1 && !dryRun{
 			log.Info("All experiments for ", experiment.Name, " completed")
 		}
 	}
 	// Run global postscript
 	runScript(multiLoaderConfig.PostScriptPath)
-	// Finish
-	log.Info("All experiments completed")
 }
 
 // The role of this function is just to create partial loader configs 
@@ -279,8 +289,11 @@ func mergeConfigurations(baseConfigPath string, experiment config.LoaderExperime
 
 /**
  * Run loader.go with experiment configs
+ * @param experiment config.LoaderExperiment
+ * @param dryRun bool
+ * @return should experiment continue
  */
-func runExperiment(experiment config.LoaderExperiment) {
+func runExperiment(experiment config.LoaderExperiment, dryRun bool) bool {
 	log.Info("Running ", experiment.Name)
 	log.Debug("Experiment configuration ", experiment.Config)
 
@@ -303,18 +316,13 @@ func runExperiment(experiment config.LoaderExperiment) {
 	defer logFile.Close()
 
 	for i := 0; i < NUM_OF_RETRIES; i++ {
-		if i > 0 {
-			log.Info("Retrying experiment ", experiment.Name)
-			logFile.WriteString("==================================RETRYING==================================\n")
-			experimentVerbosity = "debug"
-		}
-		
 		// Run loader.go with experiment configs
 		cmd := exec.Command("go", "run", LOADER_PATH,
 			"--config=" + EXPERIMENT_TEMP_CONFIG_PATH,
 			"--verbosity=" + experimentVerbosity,
 			"--iatGeneration=" + strconv.FormatBool(experiment.IatGeneration),
-			"--generated=" + strconv.FormatBool(experiment.Generated))
+			"--generated=" + strconv.FormatBool(experiment.Generated),
+			"--dryRun=" + strconv.FormatBool(dryRun))
 	
 		stdout, _ := cmd.StdoutPipe()
 		stderr, _ := cmd.StderrPipe()
@@ -327,17 +335,22 @@ func runExperiment(experiment config.LoaderExperiment) {
 		err = cmd.Wait()
 		if err != nil {
 			log.Error(err)
-		}
-		
-		if err != nil {
 			log.Error("Experiment failed: ", experiment.Name)
 			logFile.WriteString("Experiment failed: " + experiment.Name + "\n")
+			if i == 0 {
+				log.Info("Retrying experiment ", experiment.Name)
+				logFile.WriteString("==================================RETRYING==================================\n")
+				experimentVerbosity = "debug"
+			} else{
+				// should not continue with experiment
+				return false
+			}
 			continue
 		}
 		break
 	}
-
 	log.Info("Completed ", experiment.Name)
+	return true
 }
 
 func collateLogs(experimentConfig config.LoaderExperiment) {
