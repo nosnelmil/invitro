@@ -19,9 +19,9 @@
     "PreScriptPath": "",
     "PostScriptPath": "",
     "BaseConfigPath": "cmd/multi_loader/base_loader_config.json",
-    "MasterNode": "Lenson@pc836.emulab.net",
-    "AutoScalerNode": "Lenson@pc836.emulab.net",
-    "ActivatorNode": "Lenson@pc836.emulab.net",
-    "LoaderNode": "Lenson@pc792.emulab.net",
-    "WorkerNodes": ["Lenson@pc809.emulab.net"]
+    "MasterNode": "Lenson@10.0.1.1",
+    "AutoScalerNode": "Lenson@10.0.1.1",
+    "ActivatorNode": "Lenson@10.0.1.1",
+    "LoaderNode": "Lenson@pc747.emulab.net",
+    "WorkerNodes": ["Lenson@10.0.1.3"]
 }

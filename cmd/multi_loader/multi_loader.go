@@ -42,7 +42,7 @@ const (
 var (
     multiLoaderConfigPath    = flag.String("multiLoaderConfig", "cmd/multi_loader/multi_loader_config.json", "Path to multi loader configuration file")
     verbosity     = flag.String("verbosity", "info", "Logging verbosity - choose from [info, debug, trace]")
-	runRemote	 = flag.Bool("runRemote", false, "Run loader on remote node")
+	syncConfig	 = flag.Bool("syncConfig", false, "sync loader on remote node")
 	multiLoaderConfig = config.MutliLoaderConfiguration{}
 	masterNode = ""
 	autoscalerNode = ""
@@ -82,8 +82,8 @@ func init() {
 func main() {
 	log.Info("Starting multiloader")
 	// Check if running remotely
-	if *runRemote {
-		runLoaderRemotely()
+	if *syncConfig {
+		executeLoaderRemotely()
 		return
 	}
 	// Check config
@@ -185,7 +185,7 @@ func unpackExperiment(experiment config.LoaderExperiment) []config.LoaderExperim
 	return subExperiments
 }
 
-func runLoaderRemotely() {
+func executeLoaderRemotely() {
 	log.Info("Running loader on remote node")
 	// Sync multi-loader configurations
 	log.Info("Syncing multi-loader configurations")
@@ -197,16 +197,7 @@ func runLoaderRemotely() {
 	log.Info("Syncing scripts")
 	syncToRemoteFile(loaderNode, "./scripts/", INVITRO_BASE_PATH + "scripts")
 
-	// Run loader.go on remote node
-	log.Info("Running loader.go on remote node")
-
-	// Run tmux session
-	tmuxSession := time.Now().Format("2006-01-02_15_04_05") + "_multi_loader" 
-	runRemoteCommand(loaderNode, "tmux new-session -d -s " + tmuxSession)
-	runRemoteCommand(loaderNode, "tmux send-keys -t " + tmuxSession + " 'cd " + INVITRO_BASE_PATH + " && source /etc/profile && go run cmd/multi_loader/multi_loader.go' C-m")
-	log.Info("Multi loader running on remote node " + loaderNode + " (tmux session: ", tmuxSession, ")")
-	log.Info(fmt.Sprintf(`To attach to the session, run:
-		ssh -t %s 'tmux a -t %s'`, loaderNode, tmuxSession))
+	log.Info("Done syncing")
 }
 
 func prepareExperiment(subExperiment config.LoaderExperiment) {
@@ -536,13 +527,11 @@ func syncToRemoteFile(remoteNode string, src string, dest string) {
 // Surface level check
 func checkMultiLoaderConfig(multiLoaderConfig config.MutliLoaderConfiguration) {
 	log.Info("Checking multi-loader configuration")
-	// check if nodes if runRemote is true
+	// check if nodes if executeRemotely is true
 	checkNode(multiLoaderConfig.MasterNode)
 	checkNode(multiLoaderConfig.AutoScalerNode)
 	checkNode(multiLoaderConfig.ActivatorNode)
-	if *runRemote {
-		checkNode(multiLoaderConfig.LoaderNode)
-	}
+	checkNode(multiLoaderConfig.LoaderNode)
 	log.Info("Nodes are reachable")
 	// Check if all paths are valid
 	checkPath(multiLoaderConfig.BaseConfigPath)
