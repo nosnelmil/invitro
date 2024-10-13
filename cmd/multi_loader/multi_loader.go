@@ -73,11 +73,6 @@ func init() {
 
 	// Initialise global variables
 	multiLoaderConfig = config.ReadMultiLoaderConfigurationFile(*multiLoaderConfigPath)
-	masterNode = multiLoaderConfig.MasterNode
-	autoscalerNode = multiLoaderConfig.AutoScalerNode
-	activatorNode = multiLoaderConfig.ActivatorNode
-	loaderNode = multiLoaderConfig.LoaderNode
-	workerNodes = multiLoaderConfig.WorkerNodes
 }
 
 func main() {
@@ -87,6 +82,9 @@ func main() {
 		executeLoaderRemotely()
 		return
 	}
+	// Determine nodes
+	determineNodes()
+	// Dry run
 	log.Info("Starting dry run")
 	runMultiLoader(true)
 	log.Info("Dry run completed")
@@ -95,6 +93,65 @@ func main() {
 	// Finish
 	log.Info("All experiments completed")
 	
+}
+
+func determineNodes() {
+	// Determine master loader and worker nodes
+    cmd := exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=worker | awk '{print $6}'")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Fatal(err)
+	}
+	workerNodes = strings.Split(strings.Trim(string(out), " \n"), "\n")
+	for i := range workerNodes {
+		workerNodes[i] = strings.TrimSpace(workerNodes[i])
+	}
+	log.Info("Worker nodes: ", workerNodes)
+
+	cmd = exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=master | awk '{print $6}'")
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		log.Fatal(err)
+	}
+	masterNode = strings.Trim(string(out), " \n")
+	log.Info("Master node: ", masterNode)
+	
+	cmd = exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=monitoring | awk '{print $6}'")
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		log.Fatal(err)
+	}
+	loaderNode = strings.Trim(string(out), " \n")
+	log.Info("Loader node: ", loaderNode)
+
+	// Determine autoscaler node & activator node
+	autoscalerNode = determineSpecialPods("autoscaler")
+	log.Info("Autoscaler node: ", autoscalerNode)
+	activatorNode = determineSpecialPods("activator")
+	log.Info("Activator node: ", activatorNode)
+
+}
+
+func determineSpecialPods(podNamePrefix string) string {
+	// Get the pod alias
+	cmdPodName := exec.Command("sh", "-c", fmt.Sprintf("kubectl get pods -n knative-serving --no-headers | grep %s- | awk '{print $1}'", podNamePrefix))
+	out, err := cmdPodName.CombinedOutput()
+
+	if err != nil {
+		log.Fatal("Error getting", podNamePrefix, "pod name:", err)
+	}
+
+	// Get the private ip using the pod alias
+	podName := strings.Trim(string(out), "\n")
+	cmdNodeIP := exec.Command("sh", "-c", fmt.Sprintf("kubectl get pod %s -n knative-serving -o=jsonpath='{.status.hostIP}'", podName))
+	out, err = cmdNodeIP.CombinedOutput()
+
+	if err != nil {
+		log.Fatal("Error getting", cmdNodeIP, "node IP:", err)
+	}
+
+	nodeIp := strings.Split(string(out), "\n")[0]
+	return strings.Trim(nodeIp, " ")
 }
 
 func runMultiLoader(dryRun bool){
@@ -111,7 +168,6 @@ func runMultiLoader(dryRun bool){
 		for _, subExperiment := range subExperiments {
 			if dryRun{
 				log.Info("Dry Running: ", subExperiment.Name)
-				log.SetOutput(io.Discard)
 			}
 			// Prepare experiment
 			prepareExperiment(subExperiment)		
@@ -127,9 +183,6 @@ func runMultiLoader(dryRun bool){
 				log.Info("Experiment failed: ", subExperiment.Name, ". Skipping remaining experiments in study...")
 				break
 			}
-		}
-		if dryRun{
-			log.SetOutput(os.Stdout)
 		}
 		// Run post script
 		runScript(experiment.PostScriptPath)
@@ -280,8 +333,7 @@ func runTOPCommands(experimentPath string, collect bool) {
 			} else {
 				copyRemoteFile(node, "top.txt", path.Join(experimentPath, "top_" + node + ".txt"))
 			}
-				
-		}(node)
+		}(strings.TrimSpace(node))
 	}
 
 	wg.Wait() 
@@ -458,7 +510,7 @@ func runRemoteCommand(ip string, command string){
 	
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Error(string(output))
+		log.Error(ip, string(output))
 		log.Fatal(err)
 	}
 }
