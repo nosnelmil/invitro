@@ -109,6 +109,10 @@ func runMultiLoader(dryRun bool){
 		runScript(experiment.PreScriptPath)	
 		// Run each experiment
 		for _, subExperiment := range subExperiments {
+			if dryRun{
+				log.Info("Dry Running: ", subExperiment.Name)
+				log.SetOutput(io.Discard)
+			}
 			// Prepare experiment
 			prepareExperiment(subExperiment)		
 			// Call loader.go
@@ -123,6 +127,9 @@ func runMultiLoader(dryRun bool){
 				log.Info("Experiment failed: ", subExperiment.Name, ". Skipping remaining experiments in study...")
 				break
 			}
+		}
+		if dryRun{
+			log.SetOutput(os.Stdout)
 		}
 		// Run post script
 		runScript(experiment.PostScriptPath)
