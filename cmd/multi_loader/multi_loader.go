@@ -37,6 +37,7 @@ const (
 	NUM_OF_RETRIES = 2
 	TIME_FORMAT = "Jan_02_1504"
 	TRACE_FORMAT_STRING = "{}"
+	LOADER_NODE_ADD = "Lenson@pc747.emulab.net"
 )
 
 var (
@@ -86,7 +87,10 @@ func main() {
 		executeLoaderRemotely()
 		return
 	}
+	log.Info("Starting dry run")
 	runMultiLoader(true)
+	log.Info("Dry run completed")
+	log.Info("Running experiments")
 	runMultiLoader(false)
 	// Finish
 	log.Info("All experiments completed")
@@ -100,7 +104,7 @@ func runMultiLoader(dryRun bool){
 	for _, experiment := range multiLoaderConfig.Experiments {
 		log.Info("Setting up experiment: ", experiment.Name)
 		// Unpack experiment
-		subExperiments := unpackExperiment(experiment)
+		subExperiments := unpackExperiment(experiment, dryRun)
 		// Run pre script
 		runScript(experiment.PreScriptPath)	
 		// Run each experiment
@@ -132,7 +136,7 @@ func runMultiLoader(dryRun bool){
 
 // The role of this function is just to create partial loader configs 
 // and the values will override values in the base loader config later
-func unpackExperiment(experiment config.LoaderExperiment) []config.LoaderExperiment {
+func unpackExperiment(experiment config.LoaderExperiment, dryRun bool) []config.LoaderExperiment {
 	log.Info("Unpacking experiment ", experiment.Name)
 	subExperiments := []config.LoaderExperiment{}
 
@@ -151,14 +155,18 @@ func unpackExperiment(experiment config.LoaderExperiment) []config.LoaderExperim
 			DeepCopy(experiment, &newExperiment)
 			
 			// Set new experiment configs based on trace file
-			newExperiment.Config["TracePath"] = path.Join(newExperiment.TracesDir, file.Name())
+			newExperiment.Config["TracePath"] = path.Join(experiment.TracesDir, file.Name())
+			dryRunAdditionalPath := ""
+			if dryRun {
+				dryRunAdditionalPath = "dry_run"
+			}
 			newExperiment.Config["OutputPathPrefix"] = path.Join(
-				newExperiment.OutputDir, 
-				newExperiment.Name, 
+				experiment.OutputDir, 
+				experiment.Name, 
+				dryRunAdditionalPath,
 				time.Now().Format(TIME_FORMAT) + "_" + file.Name(), 
 				file.Name())
 			newExperiment.Name = file.Name()
-			
 			// Merge base configs with experiment configs
 			subExperiments = append(subExperiments, newExperiment)
 		}
@@ -174,9 +182,14 @@ func unpackExperiment(experiment config.LoaderExperiment) []config.LoaderExperim
 			fileName := path.Base(tracePath)
 			// Set new experiment configs based on trace value
 			newExperiment.Config["TracePath"] = tracePath
+			dryRunAdditionalPath := ""
+			if dryRun {
+				dryRunAdditionalPath = "dry_run"
+			}
 			newExperiment.Config["OutputPathPrefix"] = path.Join(
 				newExperiment.OutputDir, 
 				newExperiment.Name, 
+				dryRunAdditionalPath,
 				time.Now().Format(TIME_FORMAT) + "_" + fileName, 
 				fileName)
 			newExperiment.Name = newExperiment.Name + "_" + fileName
@@ -187,9 +200,19 @@ func unpackExperiment(experiment config.LoaderExperiment) []config.LoaderExperim
 	} else {
 		// Theres only one experiment in the study
 		// check if experiment config has the OutputPathPrefix field
-		if _, ok := experiment.Config["OutputPathPrefix"]; !ok {
-			experiment.Config["OutputPathPrefix"] = "data/out/" + time.Now().Format(TIME_FORMAT) + "_" + experiment.Name 
+		// if _, ok := experiment.Config["OutputPathPrefix"]; !ok {
+		pathDir := path.Dir(experiment.Config["OutputPathPrefix"].(string))
+		dryRunAdditionalPath := ""
+		if dryRun {
+			dryRunAdditionalPath = "dry_run"
 		}
+		experiment.Config["OutputPathPrefix"] = path.Join(
+			pathDir,
+			experiment.Name,
+			dryRunAdditionalPath,
+			time.Now().Format(TIME_FORMAT) + "_" + experiment.Name,
+		) 
+		// }
 		subExperiments = append(subExperiments, experiment)
 	}
 	return subExperiments
@@ -199,13 +222,13 @@ func executeLoaderRemotely() {
 	log.Info("Running loader on remote node")
 	// Sync multi-loader configurations
 	log.Info("Syncing multi-loader configurations")
-	syncToRemoteFile(loaderNode, "./cmd/multi_loader/", INVITRO_BASE_PATH + "cmd/multi_loader")
+	syncToRemoteFile(LOADER_NODE_ADD, "./cmd/multi_loader/", INVITRO_BASE_PATH + "cmd/multi_loader")
 	// Sync trace files
 	log.Info("Syncing trace files")
-	syncToRemoteFile(loaderNode, "./data/traces/", INVITRO_BASE_PATH + "data/traces")
+	syncToRemoteFile(LOADER_NODE_ADD, "./data/traces/", INVITRO_BASE_PATH + "data/traces")
 	// Sync scripts
 	log.Info("Syncing scripts")
-	syncToRemoteFile(loaderNode, "./scripts/", INVITRO_BASE_PATH + "scripts")
+	syncToRemoteFile(LOADER_NODE_ADD, "./scripts/", INVITRO_BASE_PATH + "scripts")
 
 	log.Info("Done syncing")
 }
@@ -216,8 +239,7 @@ func prepareExperiment(subExperiment config.LoaderExperiment) {
 	experimentConfig := mergeConfigurations(multiLoaderConfig.BaseConfigPath, subExperiment)
     
 	// Create output directory
-	outputDirs := strings.Split(experimentConfig.OutputPathPrefix, "/")
-	outputDir := path.Join(outputDirs[:len(outputDirs)-1]...)
+	outputDir := path.Dir(experimentConfig.OutputPathPrefix)
 	err := os.MkdirAll(outputDir, rwxr_xr_x)
 	if err != nil {
 		log.Fatal(err)
@@ -303,10 +325,7 @@ func runExperiment(experiment config.LoaderExperiment, dryRun bool) bool {
 	}
 
 	// Create the log file
-	experimentOutPutDirArr := strings.Split(experiment.Config["OutputPathPrefix"].(string), "/")
-	experimentOutPutDirArr = experimentOutPutDirArr[:len(experimentOutPutDirArr)-1]
-	experimentOutPutDir := strings.Join(experimentOutPutDirArr, "/")
-
+	experimentOutPutDir := path.Dir(experiment.Config["OutputPathPrefix"].(string))
 	logFilePath := path.Join(experimentOutPutDir, "loader.log")
 
 	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
@@ -357,7 +376,6 @@ func collateLogs(experimentConfig config.LoaderExperiment) {
 	// collate logs
 	log.Info("Collating logs")
 	experimentDir := path.Dir(experimentConfig.Config["OutputPathPrefix"].(string))
-	
 	
 	// Create log directories
 	topDir := path.Join(experimentDir, "top")
@@ -423,15 +441,17 @@ func collateLogs(experimentConfig config.LoaderExperiment) {
 	runRemoteCommand(masterNode, "mkdir -p " + tempSnapshotDir)
 	runRemoteCommand(masterNode, "kubectl cp -n monitoring " + "prometheus-prometheus-kube-prometheus-prometheus-0:/prometheus/snapshots/ " + 
 		"-c prometheus " + tempSnapshotDir)
-	copyRemoteFile(masterNode, tempSnapshotDir, prometheusSnapshotDir)
+	copyRemoteFile(masterNode, tempSnapshotDir, path.Dir(prometheusSnapshotDir))
+	// remove temp directory
+	runRemoteCommand(masterNode, "rm -rf " + tempSnapshotDir)
 }
 
 func runRemoteCommand(ip string, command string){
 	cmd := exec.Command("ssh", "-oStrictHostKeyChecking=no", "-p 22", ip, command)
 	
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err:= cmd.Run(); err != nil {
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Error(string(output))
 		log.Fatal(err)
 	}
 }
@@ -440,7 +460,11 @@ func performCleanup() {
 	log.Info("Runnning Cleanup")
 	// Run make clean
 	cmd := exec.Command("make", "clean")
-	cmd.Run()
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Error(err)
+	}
+	log.Info("Cleanup completed")
 	// Remove temp file
 	os.Remove(EXPERIMENT_TEMP_CONFIG_PATH)
 }
@@ -466,14 +490,14 @@ func logLoaderStdOutput(stdPipe io.ReadCloser, logFile *os.File) {
 		if len(message) > 1 {
 			m = message[1][1:len(message[1])-1]
 		}
-		m = strings.ReplaceAll(m, "\n", "")
+		m = strings.ReplaceAll(m, "\\n", "")
 		if logType == "debug" {
 			log.Debug(m)
 		} else if logType == "trace" {
 			log.Trace(m)
 		} else {
 			if strings.Contains(m, "Number of successful invocations:") || strings.Contains(m, "Number of failed invocations:") {
-				m = strings.ReplaceAll(m, "\t", "  ",)
+				m = strings.ReplaceAll(m, "\\t", " ",)
 				log.Info(m)
 			}
 		}
