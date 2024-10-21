@@ -46,7 +46,7 @@ var (
     verbosity     = flag.String("verbosity", "info", "Logging verbosity - choose from [info, debug, trace]")
 	syncConfig	 = flag.Bool("syncConfig", false, "sync loader on remote node")
 	multiLoaderConfig = config.MutliLoaderConfiguration{}
-	masterNode = multiLoaderConfig.MasterNode
+	masterNode = ""
 	autoscalerNode = ""
 	activatorNode = ""
 	loaderNode = ""
@@ -675,6 +675,12 @@ func checkMultiLoaderConfig() {
 		if experiment.TracesDir == "" && (experiment.TracesFormat == "" || len(experiment.TraceValues) == 0) {
 			if _, ok := experiment.Config["TracePath"]; !ok {
 				log.Fatal("Missing one of TracesDir, TracesFormat & TraceValues, Config.TracePath in multi_loader_config ", experiment.Name)
+			}
+		}
+		if experiment.TracesFormat != ""{
+			// check if trace format contains TRACE_FORMAT_STRING
+			if !strings.Contains(experiment.TracesFormat, TRACE_FORMAT_STRING) {
+				log.Fatal("Invalid TracesFormat in multi_loader_config ", experiment.Name, ". Missing ", TRACE_FORMAT_STRING, " in format")
 			}
 		}
 		if experiment.OutputDir == "" {

@@ -188,7 +188,8 @@ func runTraceMode(cfg *config.LoaderConfiguration, iatOnly bool, generated bool)
 		Functions: functions,
 	})
 	
-	if !*dryRun {
-		experimentDriver.RunExperiment(iatOnly, generated)
+	if *dryRun {
+		return
 	}
+	experimentDriver.RunExperiment(iatOnly, generated)
 }
