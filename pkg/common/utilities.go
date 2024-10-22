@@ -224,6 +224,9 @@ func DetermineOtherNodes(podNamePrefix string) string {
 }
 
 func RunScript(command string) {
+	if command == "" {
+		return
+	}
 	logger.Info("Running command ", command)
 	cmd, err := exec.Command("/bin/sh", command).Output()
 	if err != nil {
