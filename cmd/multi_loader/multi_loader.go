@@ -38,12 +38,11 @@ var (
 	generated     = flag.Bool("generated", false, "If iats were already generated")
 
 	multiLoaderConfig = config.MutliLoaderConfiguration{}
-	masterNode = ""
-	autoscalerNode = ""
-	activatorNode = ""
-	loaderNode = ""
-	workerNodes = []string{}
+	masterNode, autoscalerNode, activatorNode, loaderNode string
+	workerNodes                                         []string
+
 	dryRunSuccess = true
+
 	// Temp flag to run loader on remote node
 	syncConfig	 = flag.Bool("syncConfig", false, "sync loader on remote node")
 )
@@ -59,7 +58,6 @@ func init() {
 		determineNodes()
 	}
 }
-
 
 func initLogger() {
 	log.SetFormatter(&log.TextFormatter{
@@ -102,7 +100,6 @@ func determineNodes() {
 	}
 }
 
-
 func main() {
 	log.Info("Starting multiloader")
 	// Sync config. Used for testing
@@ -126,7 +123,6 @@ func main() {
 	
 }
 
-
 func runMultiLoader(dryRun bool){
 	// Run global prescript
 	common.RunScript(multiLoaderConfig.PreScript)
@@ -142,6 +138,7 @@ func runMultiLoader(dryRun bool){
 			if dryRun{
 				log.Info("Dry Running: ", subExperiment.Name)
 			}
+			
 			// Prepare experiment
 			prepareExperiment(subExperiment)		
 			// Call loader.go
@@ -152,6 +149,7 @@ func runMultiLoader(dryRun bool){
 			}
 			// Perform cleanup
 			performCleanup()
+			// Check if should continue
 			if !shouldContinue {
 				log.Info("Experiment failed: ", subExperiment.Name, ". Skipping remaining experiments in study...")
 				break
@@ -171,88 +169,79 @@ func runMultiLoader(dryRun bool){
 // and the values will override values in the base loader config later
 func unpackExperiment(experiment config.LoaderExperiment, dryRun bool) []config.LoaderExperiment {
 	log.Info("Unpacking experiment ", experiment.Name)
-	subExperiments := []config.LoaderExperiment{}
+	var subExperiments []config.LoaderExperiment
 
 	// If user specified a trace directory
 	if experiment.TracesDir != "" {
-		files, err := os.ReadDir(experiment.TracesDir)
-		if err != nil {
-			log.Fatal(err)
-		}
-		// Create an experiment config for each trace file
-		for _, file := range files {
-			// deep copy experiment
-			newExperiment, err := common.DeepCopy(experiment)
-			if err != nil {
-				log.Fatal(err)
-			}
-			
-			// Set new experiment configs based on trace file
-			newExperiment.Config["TracePath"] = path.Join(experiment.TracesDir, file.Name())
-			dryRunAdditionalPath := ""
-			if dryRun {
-				dryRunAdditionalPath = "dry_run"
-			}
-			newExperiment.Config["OutputPathPrefix"] = path.Join(
-				experiment.OutputDir, 
-				experiment.Name, 
-				dryRunAdditionalPath,
-				time.Now().Format(TIME_FORMAT) + "_" + file.Name(), 
-				file.Name())
-			newExperiment.Name = file.Name()
-			addCommandFlags(newExperiment)
-			// Merge base configs with experiment configs
-			subExperiments = append(subExperiments, newExperiment)
-		}
+		subExperiments = unpackFromTraceDir(experiment, dryRun)
 	// User Define trace format and values instead of directory
 	} else if experiment.TracesFormat != "" && len(experiment.TraceValues) > 0 {
-		// Create a experiemnt config for each trace value
-		for _, traceValue := range experiment.TraceValues {
-			// deep copy experiment
-			newExperiment, err := common.DeepCopy(experiment)
-			if err != nil {
-				log.Fatal(err)
-			}
-			
-			tracePath := strings.Replace(experiment.TracesFormat, common.TraceFormatString, fmt.Sprintf("%v", traceValue), -1)
-			fileName := path.Base(tracePath)
-			// Set new experiment configs based on trace value
-			newExperiment.Config["TracePath"] = tracePath
-			dryRunAdditionalPath := ""
-			if dryRun {
-				dryRunAdditionalPath = "dry_run"
-			}
-			newExperiment.Config["OutputPathPrefix"] = path.Join(
-				newExperiment.OutputDir, 
-				newExperiment.Name, 
-				dryRunAdditionalPath,
-				time.Now().Format(TIME_FORMAT) + "_" + fileName, 
-				fileName)
-			newExperiment.Name = newExperiment.Name + "_" + fileName
-			addCommandFlags(newExperiment)
-			// Merge base configs with experiment configs
-			subExperiments = append(subExperiments, newExperiment)
-		}
+		subExperiments = unpackFromTraceValues(experiment, dryRun)
 	} else {
 		// Theres only one experiment in the study
-		// check if experiment config has the OutputPathPrefix field
-		pathDir := path.Dir(experiment.Config["OutputPathPrefix"].(string))
-		dryRunAdditionalPath := ""
-		if dryRun {
-			dryRunAdditionalPath = "dry_run"
-		}
-		experiment.Config["OutputPathPrefix"] = path.Join(
-			pathDir,
-			experiment.Name,
-			dryRunAdditionalPath,
-			time.Now().Format(TIME_FORMAT) + "_" + experiment.Name,
-		) 
-		addCommandFlags(experiment)
-		subExperiments = append(subExperiments, experiment)
+		subExperiments = unpackSingleExperiment(experiment, dryRun)
 	}
 
 	return subExperiments
 }
+
+func unpackFromTraceDir(experiment config.LoaderExperiment, dryRun bool) []config.LoaderExperiment {
+	var subExperiments []config.LoaderExperiment
+	files, err := os.ReadDir(experiment.TracesDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, file := range files {
+		newExperiment := createNewExperiment(experiment, file.Name(), dryRun)
+		subExperiments = append(subExperiments, newExperiment)
+	}
+	return subExperiments
+}
+
+func unpackFromTraceValues(experiment config.LoaderExperiment, dryRun bool) []config.LoaderExperiment {
+	var subExperiments []config.LoaderExperiment
+	for _, traceValue := range experiment.TraceValues {
+		tracePath := strings.Replace(experiment.TracesFormat, common.TraceFormatString, fmt.Sprintf("%v", traceValue), -1)
+		fileName := path.Base(tracePath)
+		newExperiment := createNewExperiment(experiment, fileName, dryRun)
+		newExperiment.Config["TracePath"] = tracePath
+		newExperiment.Name += "_" + fileName
+		subExperiments = append(subExperiments, newExperiment)
+	}
+	return subExperiments
+}
+
+func unpackSingleExperiment(experiment config.LoaderExperiment, dryRun bool) []config.LoaderExperiment {
+	var subExperiments []config.LoaderExperiment
+	pathDir := path.Dir(experiment.Config["OutputPathPrefix"].(string))
+	experiment.OutputDir = pathDir
+	newExperiment := createNewExperiment(experiment, experiment.Name, dryRun)
+	subExperiments = append(subExperiments, newExperiment)
+	return subExperiments
+}
+
+func createNewExperiment(experiment config.LoaderExperiment, fileName string, dryRun bool) config.LoaderExperiment {
+	newExperiment, err := common.DeepCopy(experiment)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	dryRunAdditionalPath := ""
+	if dryRun {
+		dryRunAdditionalPath = "dry_run"
+	}
+	newExperiment.Config["OutputPathPrefix"] = path.Join(
+		experiment.OutputDir,
+		experiment.Name,
+		dryRunAdditionalPath,
+		time.Now().Format(TIME_FORMAT)+"_"+fileName,
+		fileName,
+	)
+	addCommandFlags(newExperiment)
+	return newExperiment
+}
+
 
 func addCommandFlags(experiment config.LoaderExperiment) {
 	// Add flags to experiment config
@@ -275,8 +264,8 @@ func prepareExperiment(subExperiment config.LoaderExperiment) {
     
 	// Create output directory
 	outputDir := path.Dir(experimentConfig.OutputPathPrefix)
-	err := os.MkdirAll(outputDir, rwxr_xr_x)
-	if err != nil {
+
+	if err := os.MkdirAll(outputDir, rwxr_xr_x); err != nil {
 		log.Fatal(err)
 	}
 	// Write experiment configs to temp file
@@ -309,18 +298,18 @@ func mergeConfigurations(baseConfigPath string, experiment config.LoaderExperime
 		log.Fatal(err)
 	}
 	log.Debug("Experiment configuration ", experiment.Config)
+	
 	var mergedConfig config.LoaderConfiguration
 	// Unmarshal base configuration
-	err = json.Unmarshal(baseConfigByteValue, &mergedConfig)
-	if err != nil {
+	if err = json.Unmarshal(baseConfigByteValue, &mergedConfig); err != nil {
 		log.Fatal(err)
 	}
+
 	log.Debug("Base configuration ", mergedConfig)
 	
 	// merge experiment config onto base config
 	experimentConfigBytes, _ := json.Marshal(experiment.Config)
-	err = json.Unmarshal(experimentConfigBytes, &mergedConfig);
-	if err != nil {
+	if err = json.Unmarshal(experimentConfigBytes, &mergedConfig); err != nil {
 		log.Fatal(err)
 	}
 	log.Debug("Merged configuration ", mergedConfig)
@@ -339,9 +328,7 @@ func runExperiment(experiment config.LoaderExperiment, dryRun bool) bool {
 	log.Debug("Experiment configuration ", experiment.Config)
 
 	// Create the log file
-	experimentOutPutDir := path.Dir(experiment.Config["OutputPathPrefix"].(string))
-	logFilePath := path.Join(experimentOutPutDir, "loader.log")
-
+	logFilePath := path.Join(path.Dir(experiment.Config["OutputPathPrefix"].(string)), "loader.log")
 	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		log.Fatal(err)
@@ -350,23 +337,7 @@ func runExperiment(experiment config.LoaderExperiment, dryRun bool) bool {
 
 	for i := 0; i < NUM_OF_RETRIES; i++ {
 		// Run loader.go with experiment configs
-		cmd := exec.Command("go", "run", LOADER_PATH,
-			"--config=" + EXPERIMENT_TEMP_CONFIG_PATH,
-			"--verbosity=" + experiment.Verbosity,
-			"--iatGeneration=" + strconv.FormatBool(experiment.IatGeneration),
-			"--generated=" + strconv.FormatBool(experiment.Generated),
-			"--dryRun=" + strconv.FormatBool(dryRun))
-	
-		stdout, _ := cmd.StdoutPipe()
-		stderr, _ := cmd.StderrPipe()
-
-		cmd.Start()
-
-		go logLoaderStdOutput(stdout, logFile)
-		go logLoaderStdError(stderr, logFile)
-
-		err = cmd.Wait()
-		if err != nil {
+		if err := executeLoaderCommand(experiment, dryRun, logFile); err != nil {
 			log.Error(err)
 			log.Error("Experiment failed: ", experiment.Name)
 			logFile.WriteString("Experiment failed: " + experiment.Name + ". Error: " + err.Error() + "\n")
@@ -382,82 +353,58 @@ func runExperiment(experiment config.LoaderExperiment, dryRun bool) bool {
 				return false
 			}
 			continue
+		}else{
+			break
 		}
-		break
 	}
 	log.Info("Completed ", experiment.Name)
 	return true
 }
 
-func collateLogs(experimentConfig config.LoaderExperiment) {
-	// collate logs
-	log.Info("Collating logs")
-	experimentDir := path.Dir(experimentConfig.Config["OutputPathPrefix"].(string))
-	
-	// Create log directories
-	topDir := path.Join(experimentDir, "top")
-	autoScalerLogDir := path.Join(experimentDir, "autoscaler")
-	activatorLogDir := path.Join(experimentDir, "activator")
-	prometheusSnapshotDir := path.Join(experimentDir, "prometheus_snapshot")
-	
-	err := os.MkdirAll(topDir, rwxr_xr_x)
-	if err != nil {
-		log.Fatal(err)
-	}
-	
-	// Collect top logs
-	topProcessMetrics(topDir, false)
-	// Retrieve auto scaler logs
-	metric.RetrieveAutoScalerLogs(autoscalerNode, autoScalerLogDir)
-	// Retrieve activator logs
-	metric.RetrieveActivatorLogs(activatorNode, activatorLogDir)
-	// Retrieve prometheus snapshot
-	metric.RetrievePrometheusSnapshot(masterNode, prometheusSnapshotDir)
-}
+func executeLoaderCommand(experiment config.LoaderExperiment, dryRun bool, logFile *os.File) error {
+	cmd := exec.Command("go", "run", LOADER_PATH,
+		"--config="+EXPERIMENT_TEMP_CONFIG_PATH,
+		"--verbosity="+experiment.Verbosity,
+		"--iatGeneration="+strconv.FormatBool(experiment.IatGeneration),
+		"--generated="+strconv.FormatBool(experiment.Generated),
+		"--dryRun="+strconv.FormatBool(dryRun))
 
-func performCleanup() {
-	log.Info("Runnning Cleanup")
-	// Run make clean
-	cmd := exec.Command("make", "clean")
-	_, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Error(err)
+	stdout, _ := cmd.StdoutPipe()
+	stderr, _ := cmd.StderrPipe()
+	
+	if err := cmd.Start(); err != nil {
+		return err
 	}
-	log.Info("Cleanup completed")
-	// Remove temp file
-	os.Remove(EXPERIMENT_TEMP_CONFIG_PATH)
+	
+	go logLoaderStdOutput(stdout, logFile)
+	go logLoaderStdError(stderr, logFile)
+	
+	return cmd.Wait()
 }
 
 func logLoaderStdOutput(stdPipe io.ReadCloser, logFile *os.File) {
 
-    scanner := bufio.NewScanner(stdPipe)
-    for scanner.Scan() {
-        m := scanner.Text()
+	scanner := bufio.NewScanner(stdPipe)
+	for scanner.Scan() {
+		m := scanner.Text()
 		// write to log file
 		logFile.WriteString(m + "\n")
 		
 		// Log key information
-		if m == "" {continue}
-		logTypeArr := strings.Split(m, "level=")
-		var logType string
-		if len(logTypeArr) > 1 {
-			logType = strings.Split(logTypeArr[1], " ")[0]
-		} else {
-			logType = "info"
+		if m == "" {
+			continue
 		}
-		message := strings.Split(m, "msg=")
-		if len(message) > 1 {
-			m = message[1][1:len(message[1])-1]
-		}
-		m = strings.ReplaceAll(m, "\\n", "")
-		if logType == "debug" {
-			log.Debug(m)
-		} else if logType == "trace" {
-			log.Trace(m)
-		} else {
-			if strings.Contains(m, "Number of successful invocations:") || strings.Contains(m, "Number of failed invocations:") {
-				m = strings.ReplaceAll(m, "\\t", " ",)
-				log.Info(m)
+		logType := parseLogType(m)
+		message := parseLogMessage(m)
+		
+		switch logType {
+		case "debug":
+			log.Debug(message)
+		case "trace":
+			log.Trace(message)
+		default:
+			if strings.Contains(message, "Number of successful invocations:") || strings.Contains(message, "Number of failed invocations:") {
+				log.Info(strings.ReplaceAll(message, "\\t", " ",))
 			}
 		}
 	}
@@ -475,6 +422,58 @@ func logLoaderStdError(stdPipe io.ReadCloser, logFile *os.File) {
 		}
 		log.Error(m)
 	}
+}
+
+func parseLogType(m string) string {
+	logTypeArr := strings.Split(m, "level=")
+	if len(logTypeArr) > 1 {
+		return strings.Split(logTypeArr[1], " ")[0]
+	}
+	return "info"
+}
+
+func parseLogMessage(m string) string {
+	message := strings.Split(m, "msg=")
+	if len(message) > 1 {
+		return message[1][1 : len(message[1])-1]
+	}
+	return m
+}
+
+func collateLogs(experimentConfig config.LoaderExperiment) {
+	// collate logs
+	log.Info("Collating logs")
+	experimentDir := path.Dir(experimentConfig.Config["OutputPathPrefix"].(string))
+	
+	// Create log directories
+	topDir := path.Join(experimentDir, "top")
+	autoScalerLogDir := path.Join(experimentDir, "autoscaler")
+	activatorLogDir := path.Join(experimentDir, "activator")
+	prometheusSnapshotDir := path.Join(experimentDir, "prometheus_snapshot")
+	
+	if err := os.MkdirAll(topDir, rwxr_xr_x); err != nil {
+		log.Fatal(err)
+	}
+	
+	// Collect top logs
+	topProcessMetrics(topDir, false)
+	// Retrieve auto scaler logs
+	metric.RetrieveAutoScalerLogs(autoscalerNode, autoScalerLogDir)
+	// Retrieve activator logs
+	metric.RetrieveActivatorLogs(activatorNode, activatorLogDir)
+	// Retrieve prometheus snapshot
+	metric.RetrievePrometheusSnapshot(masterNode, prometheusSnapshotDir)
+}
+
+func performCleanup() {
+	log.Info("Runnning Cleanup")
+	// Run make clean
+	if err := exec.Command("make", "clean").Run(); err != nil {
+		log.Error(err)
+	}
+	log.Info("Cleanup completed")
+	// Remove temp file
+	os.Remove(EXPERIMENT_TEMP_CONFIG_PATH)
 }
 
 func writeExperimentConfigToTempFile(experimentConfig config.LoaderConfiguration, fileWritePath string) {
