@@ -19,7 +19,6 @@ import (
 	"github.com/vhive-serverless/loader/pkg/metric"
 )
 
-
 const (
 	rw_r__r__ = 0644
 	rwxr_xr_x = 0755
@@ -29,12 +28,15 @@ const (
 	INVITRO_BASE_PATH = "~/loader/"
 	NUM_OF_RETRIES = 2
 	TIME_FORMAT = "Jan_02_1504"
-	LOADER_NODE_ADD = "Lenson@pc747.emulab.net"
+	LOADER_NODE_ADD = "Lenson@pc717.emulab.net"
 )
 
 var (
     multiLoaderConfigPath    = flag.String("multiLoaderConfig", "cmd/multi_loader/multi_loader_config.json", "Path to multi loader configuration file")
     verbosity     = flag.String("verbosity", "info", "Logging verbosity - choose from [info, debug, trace]")
+    iatGeneration = flag.Bool("iatGeneration", false, "Generate iats only and skip invocations")
+	generated     = flag.Bool("generated", false, "If iats were already generated")
+
 	multiLoaderConfig = config.MutliLoaderConfiguration{}
 	masterNode = ""
 	autoscalerNode = ""
@@ -130,14 +132,14 @@ func determineNodes() {
 
 func runMultiLoader(dryRun bool){
 	// Run global prescript
-	common.RunScript(multiLoaderConfig.PreScriptPath)
+	common.RunScript(multiLoaderConfig.PreScript)
 	// Iterate over experiments and run them
 	for _, experiment := range multiLoaderConfig.Experiments {
 		log.Info("Setting up experiment: ", experiment.Name)
 		// Unpack experiment
 		subExperiments := unpackExperiment(experiment, dryRun)
 		// Run pre script
-		common.RunScript(experiment.PreScriptPath)	
+		common.RunScript(experiment.PreScript)	
 		// Run each experiment
 		for _, subExperiment := range subExperiments {
 			if dryRun{
@@ -159,13 +161,13 @@ func runMultiLoader(dryRun bool){
 			}
 		}
 		// Run post script
-		common.RunScript(experiment.PostScriptPath)
+		common.RunScript(experiment.PostScript)
 		if len(subExperiments) > 1 && !dryRun{
 			log.Info("All experiments for ", experiment.Name, " completed")
 		}
 	}
 	// Run global postscript
-	common.RunScript(multiLoaderConfig.PostScriptPath)
+	common.RunScript(multiLoaderConfig.PostScript)
 }
 
 // The role of this function is just to create partial loader configs 
@@ -201,6 +203,7 @@ func unpackExperiment(experiment config.LoaderExperiment, dryRun bool) []config.
 				time.Now().Format(TIME_FORMAT) + "_" + file.Name(), 
 				file.Name())
 			newExperiment.Name = file.Name()
+			addCommandFlags(newExperiment)
 			// Merge base configs with experiment configs
 			subExperiments = append(subExperiments, newExperiment)
 		}
@@ -229,7 +232,7 @@ func unpackExperiment(experiment config.LoaderExperiment, dryRun bool) []config.
 				time.Now().Format(TIME_FORMAT) + "_" + fileName, 
 				fileName)
 			newExperiment.Name = newExperiment.Name + "_" + fileName
-			
+			addCommandFlags(newExperiment)
 			// Merge base configs with experiment configs
 			subExperiments = append(subExperiments, newExperiment)
 		}
@@ -247,9 +250,25 @@ func unpackExperiment(experiment config.LoaderExperiment, dryRun bool) []config.
 			dryRunAdditionalPath,
 			time.Now().Format(TIME_FORMAT) + "_" + experiment.Name,
 		) 
+		addCommandFlags(experiment)
 		subExperiments = append(subExperiments, experiment)
 	}
+
 	return subExperiments
+}
+
+func addCommandFlags(experiment config.LoaderExperiment) {
+	// Add flags to experiment config
+	if experiment.Verbosity == "" {
+		experiment.Verbosity = *verbosity
+	}
+	if !experiment.IatGeneration {
+		experiment.IatGeneration = *iatGeneration
+	}
+	if !experiment.Generated {
+		experiment.Generated = *generated
+	} 
+	
 }
 
 func prepareExperiment(subExperiment config.LoaderExperiment) {
@@ -322,11 +341,6 @@ func runExperiment(experiment config.LoaderExperiment, dryRun bool) bool {
 	log.Info("Running ", experiment.Name)
 	log.Debug("Experiment configuration ", experiment.Config)
 
-	experimentVerbosity := experiment.Verbosity
-	if experiment.Verbosity == "" {
-		experimentVerbosity = *verbosity
-	}
-
 	// Create the log file
 	experimentOutPutDir := path.Dir(experiment.Config["OutputPathPrefix"].(string))
 	logFilePath := path.Join(experimentOutPutDir, "loader.log")
@@ -341,7 +355,7 @@ func runExperiment(experiment config.LoaderExperiment, dryRun bool) bool {
 		// Run loader.go with experiment configs
 		cmd := exec.Command("go", "run", LOADER_PATH,
 			"--config=" + EXPERIMENT_TEMP_CONFIG_PATH,
-			"--verbosity=" + experimentVerbosity,
+			"--verbosity=" + experiment.Verbosity,
 			"--iatGeneration=" + strconv.FormatBool(experiment.IatGeneration),
 			"--generated=" + strconv.FormatBool(experiment.Generated),
 			"--dryRun=" + strconv.FormatBool(dryRun))
@@ -362,7 +376,7 @@ func runExperiment(experiment config.LoaderExperiment, dryRun bool) bool {
 			if i == 0 && !dryRun {
 				log.Info("Retrying experiment ", experiment.Name)
 				logFile.WriteString("==================================RETRYING==================================\n")
-				experimentVerbosity = "debug"
+				experiment.Verbosity = "debug"
 			} else{
 				// Experiment failed set dry run flag to false
 				dryRunSuccess = false

@@ -61,8 +61,9 @@ type LoaderConfiguration struct {
 type MutliLoaderConfiguration struct {
 	Experiments 	[]LoaderExperiment 	`json:"Experiments"`
 	BaseConfigPath  string             	`json:"BaseConfigPath"`
-	PreScriptPath 	string 				`json:"PreScriptPath"`
-	PostScriptPath 	string 				`json:"PostScriptPath"`
+	// Optional
+	PreScript 		string 				`json:"PreScript"`
+	PostScript	 	string 				`json:"PostScript"`
 	MasterNode 		string 				`json:"MasterNode"`
 	AutoScalerNode 	string 				`json:"AutoScalerNode"`
 	ActivatorNode 	string 				`json:"ActivatorNode"`
@@ -79,14 +80,13 @@ type LoaderExperiment struct {
 	TracesFormat 	string 					`json:"TracesFormat"`
 	TraceValues 	[]interface{}			`json:"TraceValues"`
 
-	// OutputDir needs to be specified if either TracesDir, format or values are defined
-	OutputDir 		string 					`json:"OutputDir"`
 	// Optional
+	OutputDir 		string 					`json:"OutputDir"`
 	Verbosity		string 			   		`json:"Verbosity"`
 	IatGeneration 	bool 					`json:"IatGeneration"`
 	Generated 		bool 					`json:"Generated"`
-	PreScriptPath 	string 					`json:"PreScriptPath"`
-	PostScriptPath 	string 					`json:"PostScriptPath"`
+	PreScript	 	string 					`json:"PreScript"`
+	PostScript	 	string 					`json:"PostScript"`
 }
 
 func ReadConfigurationFile(path string) LoaderConfiguration {

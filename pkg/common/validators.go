@@ -51,17 +51,11 @@ func CheckMultiLoaderConfig(multiLoaderConfig config.MutliLoaderConfiguration,ma
 	log.Info("Nodes are reachable")
 	// Check if all paths are valid
 	CheckPath(multiLoaderConfig.BaseConfigPath)
-	CheckPath(multiLoaderConfig.PreScriptPath)
-	CheckPath(multiLoaderConfig.PostScriptPath)
-	log.Info("Global scripts are valid")
 	// Check each experiments
 	if len(multiLoaderConfig.Experiments) == 0 {
 		log.Fatal("No experiments found in configuration file")
 	}
 	for _, experiment := range multiLoaderConfig.Experiments {
-		// Check script paths
-		CheckPath(experiment.PreScriptPath)
-		CheckPath(experiment.PostScriptPath)
 		// Check trace directory
 		// if configs does not have TracePath or OutputPathPreix, either TracesDir or (TracesFormat and TraceValues) should be defined along with OutputDir
 		if experiment.TracesDir == "" && (experiment.TracesFormat == "" || len(experiment.TraceValues) == 0) {

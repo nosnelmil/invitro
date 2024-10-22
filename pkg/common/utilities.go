@@ -223,12 +223,9 @@ func DetermineOtherNodes(podNamePrefix string) string {
 	return strings.Trim(nodeIp, " ")
 }
 
-func RunScript(scriptPath string) {
-	if scriptPath == "" {
-		return
-	}
-	logger.Info("Running script ", scriptPath)
-	cmd, err := exec.Command("/bin/sh", scriptPath).Output()
+func RunScript(command string) {
+	logger.Info("Running command ", command)
+	cmd, err := exec.Command("/bin/sh", command).Output()
 	if err != nil {
 		log.Fatal(err)
 	}
