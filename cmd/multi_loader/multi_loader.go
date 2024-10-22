@@ -49,43 +49,67 @@ var (
 )
 
 func init() {
+	flag.Parse()
 	// Initialize logger
-    flag.Parse()
-
-    log.SetFormatter(&log.TextFormatter{
-        TimestampFormat: time.StampMilli,
-        FullTimestamp:   true,
-    })
-    log.SetOutput(os.Stdout)
-
-    switch *verbosity {
-    case "debug":
-        log.SetLevel(log.DebugLevel)
-    case "trace":
-        log.SetLevel(log.TraceLevel)
-    default:
-        log.SetLevel(log.InfoLevel)
-    }
-
+	initLogger()
 	// Initialise global variables
 	multiLoaderConfig = config.ReadMultiLoaderConfigurationFile(*multiLoaderConfigPath)
+	// Determine nodes addresses
+	if !*syncConfig {
+		determineNodes()
+	}
+}
+
+
+func initLogger() {
+	log.SetFormatter(&log.TextFormatter{
+		TimestampFormat: time.StampMilli,
+		FullTimestamp:   true,
+	})
+	log.SetOutput(os.Stdout)
+
+	switch *verbosity {
+	case "debug":
+		log.SetLevel(log.DebugLevel)
+	case "trace":
+		log.SetLevel(log.TraceLevel)
+	default:
+		log.SetLevel(log.InfoLevel)
+	}
+}
+
+func determineNodes() {
 	masterNode = multiLoaderConfig.MasterNode
 	autoscalerNode = multiLoaderConfig.AutoScalerNode
 	activatorNode = multiLoaderConfig.ActivatorNode
 	loaderNode = multiLoaderConfig.LoaderNode
 	workerNodes = multiLoaderConfig.WorkerNodes
+
+	if len(workerNodes) == 0 {
+		workerNodes = common.DetermineWorkerNodes()
+	}
+	if masterNode == "" {
+		masterNode = common.DetermineMasterNode()
+	}
+	if loaderNode == "" {
+		loaderNode = common.DetermineLoaderNode()
+	}
+	if autoscalerNode == "" {
+		autoscalerNode = common.DetermineOtherNodes("autoscaler")
+	}
+	if activatorNode == "" {
+		activatorNode = common.DetermineOtherNodes("activator")
+	}
 }
+
 
 func main() {
 	log.Info("Starting multiloader")
-	// Check if running remotely
+	// Sync config. Used for testing
 	if *syncConfig {
-		executeLoaderRemotely()
+		syncLoaderConfig()
 		return
 	}
-	// Determine nodes
-	determineNodes()
-
 	// Check multi loader configuration
 	common.CheckMultiLoaderConfig(multiLoaderConfig, masterNode, autoscalerNode, activatorNode, loaderNode, workerNodes)
 	// Dry run
@@ -102,33 +126,6 @@ func main() {
 	
 }
 
-func determineNodes() {
-	// Determine master loader and worker nodes
-	if len(workerNodes) == 0 {
-		workerNodes = common.DetermineWorkerNodes()
-	}
-	log.Debug("Worker nodes: ", workerNodes)
-
-	if masterNode == "" {
-		masterNode = common.DetermineMasterNode()
-	}
-	log.Debug("Master node: ", masterNode)
-
-	if loaderNode == "" {
-		loaderNode = common.DetermineLoaderNode()
-	}
-	log.Debug("Loader node: ", loaderNode)
-	
-	// Determine autoscaler node & activator node
-	if autoscalerNode == "" {
-		autoscalerNode = common.DetermineOtherNodes("autoscaler")
-	}
-	log.Debug("Autoscaler node: ", autoscalerNode)
-	if activatorNode == "" {
-		activatorNode =  common.DetermineOtherNodes("activator")
-	}
-	log.Debug("Activator node: ", activatorNode)
-}
 
 func runMultiLoader(dryRun bool){
 	// Run global prescript
@@ -489,7 +486,7 @@ func writeExperimentConfigToTempFile(experimentConfig config.LoaderConfiguration
 }
 
 // TEMPORARY FUNCTIONS
-func executeLoaderRemotely() {
+func syncLoaderConfig() {
 	log.Info("Running loader on remote node")
 	// Sync multi-loader configurations
 	log.Info("Syncing multi-loader configurations")
