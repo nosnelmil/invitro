@@ -25,11 +25,16 @@
 package common
 
 import (
+	"encoding/json"
+	"fmt"
 	"hash/fnv"
 	"log"
 	"math/rand"
+	"os/exec"
 	"strconv"
 	"strings"
+
+	logger "github.com/sirupsen/logrus"
 )
 
 type Pair struct {
@@ -118,6 +123,16 @@ func Hash(s string) uint64 {
 	return h.Sum64()
 }
 
+func DeepCopy[T any](a T) (T, error) {
+	var b T
+	byt, err := json.Marshal(a)
+	if err != nil {
+		return b, err
+	}
+	err = json.Unmarshal(byt, &b)
+	return b, err
+}
+
 func SumNumberOfInvocations(withWarmup bool, totalDuration int, functions []*Function) int {
 	result := 0
 
@@ -134,4 +149,88 @@ func SumNumberOfInvocations(withWarmup bool, totalDuration int, functions []*Fun
 	}
 
 	return result
+}
+
+func RunRemoteCommand(node string, command string){
+	cmd := exec.Command("ssh", "-oStrictHostKeyChecking=no", "-p 22", node, command)
+	
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.Fatal(err)
+	}
+	logger.Debug(node, string(output))
+}
+
+func CopyRemoteFile(remoteNode, src string, dest string){
+	cmd := exec.Command("scp", "-rp", remoteNode + ":" + src, dest)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.Fatal(err)
+	}
+	logger.Debug(string(out))
+}
+
+func DetermineWorkerNodes() []string {
+	cmd := exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=worker | awk '{print $6}'")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Fatal(err)
+	}
+	workerNodes := strings.Split(strings.Trim(string(out), " \n"), "\n")
+	for i := range workerNodes {
+		workerNodes[i] = strings.TrimSpace(workerNodes[i])
+	}
+	return workerNodes
+}
+
+func DetermineMasterNode() string {
+	cmd := exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=master | awk '{print $6}'")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return strings.Trim(string(out), " \n")
+}
+
+func DetermineLoaderNode() string {
+	cmd := exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=monitoring | awk '{print $6}'")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Fatal(err)
+		}
+	return strings.Trim(string(out), " \n")
+}
+
+func DetermineOtherNodes(podNamePrefix string) string {
+	// Get the pod alias
+	cmdPodName := exec.Command("sh", "-c", fmt.Sprintf("kubectl get pods -n knative-serving --no-headers | grep %s- | awk '{print $1}'", podNamePrefix))
+	out, err := cmdPodName.CombinedOutput()
+
+	if err != nil {
+		log.Fatal("Error getting", podNamePrefix, "pod name:", err)
+	}
+
+	// Get the private ip using the pod alias
+	podName := strings.Trim(string(out), "\n")
+	cmdNodeIP := exec.Command("sh", "-c", fmt.Sprintf("kubectl get pod %s -n knative-serving -o=jsonpath='{.status.hostIP}'", podName))
+	out, err = cmdNodeIP.CombinedOutput()
+
+	if err != nil {
+		log.Fatal("Error getting", cmdNodeIP, "node IP:", err)
+	}
+
+	nodeIp := strings.Split(string(out), "\n")[0]
+	return strings.Trim(nodeIp, " ")
+}
+
+func RunScript(scriptPath string) {
+	if scriptPath == "" {
+		return
+	}
+	logger.Info("Running script ", scriptPath)
+	cmd, err := exec.Command("/bin/sh", scriptPath).Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger.Info(string(cmd))
 }

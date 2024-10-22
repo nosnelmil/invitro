@@ -2,31 +2,23 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"os/exec"
 	"path"
-	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/vhive-serverless/loader/pkg/common"
 	"github.com/vhive-serverless/loader/pkg/config"
+	"github.com/vhive-serverless/loader/pkg/metric"
 )
 
-type PrometheusSnapshot struct {
-	Status 		string 		`json:"status"`
-	ErrorType 	string 		`json:"errorType"`
-	Error 		string 		`json:"error"` 
-	Data 		interface{} `json:"data"`
-}
 
 const (
 	rw_r__r__ = 0644
@@ -37,14 +29,12 @@ const (
 	INVITRO_BASE_PATH = "~/loader/"
 	NUM_OF_RETRIES = 2
 	TIME_FORMAT = "Jan_02_1504"
-	TRACE_FORMAT_STRING = "{}"
 	LOADER_NODE_ADD = "Lenson@pc747.emulab.net"
 )
 
 var (
     multiLoaderConfigPath    = flag.String("multiLoaderConfig", "cmd/multi_loader/multi_loader_config.json", "Path to multi loader configuration file")
     verbosity     = flag.String("verbosity", "info", "Logging verbosity - choose from [info, debug, trace]")
-	syncConfig	 = flag.Bool("syncConfig", false, "sync loader on remote node")
 	multiLoaderConfig = config.MutliLoaderConfiguration{}
 	masterNode = ""
 	autoscalerNode = ""
@@ -52,6 +42,8 @@ var (
 	loaderNode = ""
 	workerNodes = []string{}
 	dryRunSuccess = true
+	// Temp flag to run loader on remote node
+	syncConfig	 = flag.Bool("syncConfig", false, "sync loader on remote node")
 )
 
 func init() {
@@ -93,7 +85,7 @@ func main() {
 	determineNodes()
 
 	// Check multi loader configuration
-	checkMultiLoaderConfig()
+	common.CheckMultiLoaderConfig(multiLoaderConfig, masterNode, autoscalerNode, activatorNode, loaderNode, workerNodes)
 	// Dry run
 	log.Info("Starting dry run")
 	runMultiLoader(true)
@@ -111,81 +103,41 @@ func main() {
 func determineNodes() {
 	// Determine master loader and worker nodes
 	if len(workerNodes) == 0 {
-		cmd := exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=worker | awk '{print $6}'")
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			log.Fatal(err)
-		}
-		workerNodes = strings.Split(strings.Trim(string(out), " \n"), "\n")
-		for i := range workerNodes {
-			workerNodes[i] = strings.TrimSpace(workerNodes[i])
-		}
+		workerNodes = common.DetermineWorkerNodes()
 	}
 	log.Debug("Worker nodes: ", workerNodes)
 
 	if masterNode == "" {
-		cmd := exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=master | awk '{print $6}'")
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			log.Fatal(err)
-		}
-		masterNode = strings.Trim(string(out), " \n")
+		masterNode = common.DetermineMasterNode()
 	}
 	log.Debug("Master node: ", masterNode)
 
 	if loaderNode == "" {
-		cmd := exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=monitoring | awk '{print $6}'")
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			log.Fatal(err)
-		}
-		loaderNode = strings.Trim(string(out), " \n")
+		loaderNode = common.DetermineLoaderNode()
 	}
 	log.Debug("Loader node: ", loaderNode)
 	
 	// Determine autoscaler node & activator node
 	if autoscalerNode == "" {
-		autoscalerNode = determineOtherPods("autoscaler")
+		autoscalerNode = common.DetermineOtherNodes("autoscaler")
 	}
 	log.Debug("Autoscaler node: ", autoscalerNode)
 	if activatorNode == "" {
-		activatorNode = determineOtherPods("activator")
+		activatorNode =  common.DetermineOtherNodes("activator")
 	}
 	log.Debug("Activator node: ", activatorNode)
 }
 
-func determineOtherPods(podNamePrefix string) string {
-	// Get the pod alias
-	cmdPodName := exec.Command("sh", "-c", fmt.Sprintf("kubectl get pods -n knative-serving --no-headers | grep %s- | awk '{print $1}'", podNamePrefix))
-	out, err := cmdPodName.CombinedOutput()
-
-	if err != nil {
-		log.Fatal("Error getting", podNamePrefix, "pod name:", err)
-	}
-
-	// Get the private ip using the pod alias
-	podName := strings.Trim(string(out), "\n")
-	cmdNodeIP := exec.Command("sh", "-c", fmt.Sprintf("kubectl get pod %s -n knative-serving -o=jsonpath='{.status.hostIP}'", podName))
-	out, err = cmdNodeIP.CombinedOutput()
-
-	if err != nil {
-		log.Fatal("Error getting", cmdNodeIP, "node IP:", err)
-	}
-
-	nodeIp := strings.Split(string(out), "\n")[0]
-	return strings.Trim(nodeIp, " ")
-}
-
 func runMultiLoader(dryRun bool){
 	// Run global prescript
-	runScript(multiLoaderConfig.PreScriptPath)
+	common.RunScript(multiLoaderConfig.PreScriptPath)
 	// Iterate over experiments and run them
 	for _, experiment := range multiLoaderConfig.Experiments {
 		log.Info("Setting up experiment: ", experiment.Name)
 		// Unpack experiment
 		subExperiments := unpackExperiment(experiment, dryRun)
 		// Run pre script
-		runScript(experiment.PreScriptPath)	
+		common.RunScript(experiment.PreScriptPath)	
 		// Run each experiment
 		for _, subExperiment := range subExperiments {
 			if dryRun{
@@ -207,13 +159,13 @@ func runMultiLoader(dryRun bool){
 			}
 		}
 		// Run post script
-		runScript(experiment.PostScriptPath)
+		common.RunScript(experiment.PostScriptPath)
 		if len(subExperiments) > 1 && !dryRun{
 			log.Info("All experiments for ", experiment.Name, " completed")
 		}
 	}
 	// Run global postscript
-	runScript(multiLoaderConfig.PostScriptPath)
+	common.RunScript(multiLoaderConfig.PostScriptPath)
 }
 
 // The role of this function is just to create partial loader configs 
@@ -228,13 +180,13 @@ func unpackExperiment(experiment config.LoaderExperiment, dryRun bool) []config.
 		if err != nil {
 			log.Fatal(err)
 		}
-		// Create a experiemnt config for each trace file
-
-		// TODO: loop through arr of value defined in config
+		// Create an experiment config for each trace file
 		for _, file := range files {
-			var newExperiment config.LoaderExperiment
 			// deep copy experiment
-			DeepCopy(experiment, &newExperiment)
+			newExperiment, err := common.DeepCopy(experiment)
+			if err != nil {
+				log.Fatal(err)
+			}
 			
 			// Set new experiment configs based on trace file
 			newExperiment.Config["TracePath"] = path.Join(experiment.TracesDir, file.Name())
@@ -256,11 +208,13 @@ func unpackExperiment(experiment config.LoaderExperiment, dryRun bool) []config.
 	} else if experiment.TracesFormat != "" && len(experiment.TraceValues) > 0 {
 		// Create a experiemnt config for each trace value
 		for _, traceValue := range experiment.TraceValues {
-			var newExperiment config.LoaderExperiment
 			// deep copy experiment
-			DeepCopy(experiment, &newExperiment)
+			newExperiment, err := common.DeepCopy(experiment)
+			if err != nil {
+				log.Fatal(err)
+			}
 			
-			tracePath := strings.Replace(experiment.TracesFormat, TRACE_FORMAT_STRING, fmt.Sprintf("%v", traceValue), -1)
+			tracePath := strings.Replace(experiment.TracesFormat, common.TraceFormatString, fmt.Sprintf("%v", traceValue), -1)
 			fileName := path.Base(tracePath)
 			// Set new experiment configs based on trace value
 			newExperiment.Config["TracePath"] = tracePath
@@ -282,7 +236,6 @@ func unpackExperiment(experiment config.LoaderExperiment, dryRun bool) []config.
 	} else {
 		// Theres only one experiment in the study
 		// check if experiment config has the OutputPathPrefix field
-		// if _, ok := experiment.Config["OutputPathPrefix"]; !ok {
 		pathDir := path.Dir(experiment.Config["OutputPathPrefix"].(string))
 		dryRunAdditionalPath := ""
 		if dryRun {
@@ -294,25 +247,9 @@ func unpackExperiment(experiment config.LoaderExperiment, dryRun bool) []config.
 			dryRunAdditionalPath,
 			time.Now().Format(TIME_FORMAT) + "_" + experiment.Name,
 		) 
-		// }
 		subExperiments = append(subExperiments, experiment)
 	}
 	return subExperiments
-}
-
-func executeLoaderRemotely() {
-	log.Info("Running loader on remote node")
-	// Sync multi-loader configurations
-	log.Info("Syncing multi-loader configurations")
-	syncToRemoteFile(LOADER_NODE_ADD, "./cmd/multi_loader/", INVITRO_BASE_PATH + "cmd/multi_loader")
-	// Sync trace files
-	log.Info("Syncing trace files")
-	syncToRemoteFile(LOADER_NODE_ADD, "./data/traces/", INVITRO_BASE_PATH + "data/traces")
-	// Sync scripts
-	log.Info("Syncing scripts")
-	syncToRemoteFile(LOADER_NODE_ADD, "./scripts/", INVITRO_BASE_PATH + "scripts")
-
-	log.Info("Done syncing")
 }
 
 func prepareExperiment(subExperiment config.LoaderExperiment) {
@@ -330,11 +267,10 @@ func prepareExperiment(subExperiment config.LoaderExperiment) {
 	writeExperimentConfigToTempFile(experimentConfig, EXPERIMENT_TEMP_CONFIG_PATH)
 
 	// Reset TOP
-	runTOPCommands(outputDir, false)
+	topProcessMetrics(outputDir, true)
 }
 
-func runTOPCommands(experimentPath string, collect bool) {
-	var wg sync.WaitGroup
+func topProcessMetrics(experimentPath string, reset bool) {
 	nodes := []string{masterNode, loaderNode}
 	if autoscalerNode != masterNode {
 		nodes = append(nodes, autoscalerNode)
@@ -343,22 +279,8 @@ func runTOPCommands(experimentPath string, collect bool) {
 		nodes = append(nodes, activatorNode)
 	}
 	nodes = append(nodes, workerNodes...)
-	for _, node := range nodes {
-		wg.Add(1)
-		go func(node string) {
-			defer wg.Done()
-			// kill all instances of top
-			runRemoteCommand(node, "if pgrep top >/dev/null; then killall top; fi")
-			if !collect {
-				// run top in the background
-				runRemoteCommand(node, "top -b -d 15 -c -w 512 > top.txt 2>&1 &")
-			} else {
-				copyRemoteFile(node, "top.txt", path.Join(experimentPath, "top_" + node + ".txt"))
-			}
-		}(strings.TrimSpace(node))
-	}
 
-	wg.Wait() 
+	metric.TOPProcessMetrics(nodes, experimentPath, reset)
 }
 
 /**
@@ -471,73 +393,15 @@ func collateLogs(experimentConfig config.LoaderExperiment) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = os.MkdirAll(autoScalerLogDir, rwxr_xr_x)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = os.MkdirAll(activatorLogDir, rwxr_xr_x)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = os.MkdirAll(prometheusSnapshotDir, rwxr_xr_x)
-	if err != nil {
-		log.Fatal(err)
-	}
-	// Collect top logs
-	runTOPCommands(topDir, true)
-	// Retrieve auto scaler logs
-	copyRemoteFile(autoscalerNode, "/var/log/pods/knative-serving_autoscaler-*/autoscaler/*", autoScalerLogDir)
-	// Retrieve activator logs
-	copyRemoteFile(activatorNode, "/var/log/pods/knative-serving_activator-*/activator/*", activatorLogDir)
-	// Retrieve prometheus snapshot
-	i := 10
-	var prometheusSnapshot PrometheusSnapshot
-	for i > 0{
-		cmd := exec.Command("ssh", masterNode, "curl -XPOST http://localhost:9090/api/v1/admin/tsdb/snapshot")
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			continue
-		}
-		re := regexp.MustCompile(`\{.*\}`)
-		jsonBytes := re.Find(out)
-		err = json.Unmarshal(jsonBytes, &prometheusSnapshot)
-
-		if err != nil {
-			log.Fatal(err)
-		}
-		if prometheusSnapshot.Status != "success" {
-			if i == 1{
-				log.Error("Prometheus Snapshot failed")
-			}else{
-				log.Info("Prometheus Snapshot not ready. Retrying...")
-			}
-			i--
-			continue
-		}
-		break
-	}
-	if prometheusSnapshot.Status != "success" {
-		log.Error("Prometheus Snapshot failed")
-		return
-	}
-	// Copy prometheus snapshot to file
-	var tempSnapshotDir = "~/tmp/prometheus_snapshot"
-	runRemoteCommand(masterNode, "mkdir -p " + tempSnapshotDir)
-	runRemoteCommand(masterNode, "kubectl cp -n monitoring " + "prometheus-prometheus-kube-prometheus-prometheus-0:/prometheus/snapshots/ " + 
-		"-c prometheus " + tempSnapshotDir)
-	copyRemoteFile(masterNode, tempSnapshotDir, path.Dir(prometheusSnapshotDir))
-	// remove temp directory
-	runRemoteCommand(masterNode, "rm -rf " + tempSnapshotDir)
-}
-
-func runRemoteCommand(ip string, command string){
-	cmd := exec.Command("ssh", "-oStrictHostKeyChecking=no", "-p 22", ip, command)
 	
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Error(ip, string(output))
-		log.Fatal(err)
-	}
+	// Collect top logs
+	topProcessMetrics(topDir, false)
+	// Retrieve auto scaler logs
+	metric.RetrieveAutoScalerLogs(autoscalerNode, autoScalerLogDir)
+	// Retrieve activator logs
+	metric.RetrieveActivatorLogs(activatorNode, activatorLogDir)
+	// Retrieve prometheus snapshot
+	metric.RetrievePrometheusSnapshot(masterNode, prometheusSnapshotDir)
 }
 
 func performCleanup() {
@@ -610,30 +474,20 @@ func writeExperimentConfigToTempFile(experimentConfig config.LoaderConfiguration
 	}
 }
 
-func runScript(scriptPath string) {
-	if scriptPath == "" {
-		return
-	}
-	log.Info("Running script ", scriptPath)
-	cmd, err := exec.Command("/bin/sh", scriptPath).Output()
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Info(string(cmd))
-}
+// TEMPORARY FUNCTIONS
+func executeLoaderRemotely() {
+	log.Info("Running loader on remote node")
+	// Sync multi-loader configurations
+	log.Info("Syncing multi-loader configurations")
+	syncToRemoteFile(LOADER_NODE_ADD, "./cmd/multi_loader/", INVITRO_BASE_PATH + "cmd/multi_loader")
+	// Sync trace files
+	log.Info("Syncing trace files")
+	syncToRemoteFile(LOADER_NODE_ADD, "./data/traces/", INVITRO_BASE_PATH + "data/traces")
+	// Sync scripts
+	log.Info("Syncing scripts")
+	syncToRemoteFile(LOADER_NODE_ADD, "./scripts/", INVITRO_BASE_PATH + "scripts")
 
-func DeepCopy(a, b interface{}) {
-    byt, _ := json.Marshal(a)
-    json.Unmarshal(byt, b)
-}
-
-func copyRemoteFile(remoteNode, src string, dest string) {
-	cmd := exec.Command("scp", "-rp", remoteNode + ":" + src, dest)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Error(string(out))
-		log.Fatal(err)
-	}
+	log.Info("Done syncing")
 }
 
 func syncToRemoteFile(remoteNode string, src string, dest string) {
@@ -643,80 +497,4 @@ func syncToRemoteFile(remoteNode string, src string, dest string) {
 	if err:= cmd.Run(); err != nil {
 		log.Fatal(err)
 	}
-}
-
-// Surface level check
-func checkMultiLoaderConfig() {
-	log.Info("Checking multi-loader configuration")
-	// check if nodes if executeRemotely is true
-	checkNode(masterNode)
-	checkNode(autoscalerNode)
-	checkNode(activatorNode)
-	checkNode(loaderNode)
-	for _, node := range workerNodes {
-		checkNode(node)
-	}
-	log.Info("Nodes are reachable")
-	// Check if all paths are valid
-	checkPath(multiLoaderConfig.BaseConfigPath)
-	checkPath(multiLoaderConfig.PreScriptPath)
-	checkPath(multiLoaderConfig.PostScriptPath)
-	log.Info("Global scripts are valid")
-	// Check each experiments
-	if len(multiLoaderConfig.Experiments) == 0 {
-		log.Fatal("No experiments found in configuration file")
-	}
-	for _, experiment := range multiLoaderConfig.Experiments {
-		// Check script paths
-		checkPath(experiment.PreScriptPath)
-		checkPath(experiment.PostScriptPath)
-		// Check trace directory
-		// if configs does not have TracePath or OutputPathPreix, either TracesDir or (TracesFormat and TraceValues) should be defined along with OutputDir
-		if experiment.TracesDir == "" && (experiment.TracesFormat == "" || len(experiment.TraceValues) == 0) {
-			if _, ok := experiment.Config["TracePath"]; !ok {
-				log.Fatal("Missing one of TracesDir, TracesFormat & TraceValues, Config.TracePath in multi_loader_config ", experiment.Name)
-			}
-		}
-		if experiment.TracesFormat != ""{
-			// check if trace format contains TRACE_FORMAT_STRING
-			if !strings.Contains(experiment.TracesFormat, TRACE_FORMAT_STRING) {
-				log.Fatal("Invalid TracesFormat in multi_loader_config ", experiment.Name, ". Missing ", TRACE_FORMAT_STRING, " in format")
-			}
-		}
-		if experiment.OutputDir == "" {
-			if _, ok := experiment.Config["OutputPathPrefix"]; !ok {
-				log.Fatal("Missing one of OutputDir or Config.OutputPathPrefix in multi_loader_config ", experiment.Name)
-			}
-		}
-	}
-	log.Info("All experiments configs are valid")
-}
-
-func checkNode(node string) {
-	if node == "" {
-		log.Fatal("Missing Master/AutoScaler/Activator/Loader node")
-	}
-	if !isValidIP(node) {
-		log.Fatal("Invalid IP address for node ", node)
-	}
-	cmd := exec.Command("ssh", "-oStrictHostKeyChecking=no", "-p", "22", node, "exit")
-	// -oStrictHostKeyChecking=no -p 22
-	out, err := cmd.CombinedOutput()
-	if bytes.Contains(out, []byte("Permission denied")) || err != nil {
-		log.Error(string(out))
-		log.Fatal("Failed to connect to node ", node)
-	}
-}
-
-func checkPath(path string) {
-	if(path) == "" { return }
-	_, err := os.Stat(path)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func isValidIP(ip string) bool {
-    parsedIP := net.ParseIP(ip)
-    return parsedIP != nil
 }

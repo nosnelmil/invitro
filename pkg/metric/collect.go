@@ -26,9 +26,16 @@ package metric
 
 import (
 	"encoding/json"
+	"os"
 	"os/exec"
+	"path"
+	"regexp"
+	"strings"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
+
+	"github.com/vhive-serverless/loader/pkg/common"
 )
 
 func ScrapeDeploymentScales() []DeploymentScale {
@@ -80,4 +87,88 @@ func ScrapeClusterUsage() ClusterUsage {
 	}
 
 	return result
+}
+
+func RetrievePrometheusSnapshot(node string, outputDir string){
+	err := os.MkdirAll(outputDir, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Retrieve prometheus snapshot
+	i := 10
+	var prometheusSnapshot common.PrometheusSnapshot
+	for i > 0{
+		cmd := exec.Command("ssh", node, "curl -XPOST http://localhost:9090/api/v1/admin/tsdb/snapshot")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			continue
+		}
+		re := regexp.MustCompile(`\{.*\}`)
+		jsonBytes := re.Find(out)
+		err = json.Unmarshal(jsonBytes, &prometheusSnapshot)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+		if prometheusSnapshot.Status != "success" {
+			if i == 1{
+				log.Error("Prometheus Snapshot failed")
+			}else{
+				log.Info("Prometheus Snapshot not ready. Retrying...")
+			}
+			i--
+			continue
+		}
+		break
+	}
+	if prometheusSnapshot.Status != "success" {
+		log.Error("Prometheus Snapshot failed")
+		return
+	}
+	// Copy prometheus snapshot to file
+	var tempSnapshotDir = "~/tmp/prometheus_snapshot"
+	common.RunRemoteCommand(node, "mkdir -p " + tempSnapshotDir)
+	common.RunRemoteCommand(node, "kubectl cp -n monitoring " + "prometheus-prometheus-kube-prometheus-prometheus-0:/prometheus/snapshots/ " + 
+		"-c prometheus " + tempSnapshotDir)
+	common.CopyRemoteFile(node, tempSnapshotDir, path.Dir(outputDir))
+	// remove temp directory
+	common.RunRemoteCommand(node, "rm -rf " + tempSnapshotDir)
+}
+
+func RetrieveAutoScalerLogs(node string, outputDir string){
+	err := os.MkdirAll(outputDir, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Retrieve autoscaler logs
+	common.CopyRemoteFile(node, "/var/log/pods/knative-serving_autoscaler-*/autoscaler/*", outputDir)
+}
+
+func RetrieveActivatorLogs(node string, outputDir string){
+	err := os.MkdirAll(outputDir, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Retrieve activator logs
+	common.CopyRemoteFile(node, "/var/log/pods/knative-serving_activator-*/activator/*", outputDir)
+}
+
+func TOPProcessMetrics(nodes []string, outputDir string, reset bool) {
+	var wg sync.WaitGroup
+	for _, node := range nodes {
+		wg.Add(1)
+		go func(node string) {
+			defer wg.Done()
+			// kill all instances of top
+			common.RunRemoteCommand(node, "if pgrep top >/dev/null; then killall top; fi")
+			if reset {
+				// run top in the background
+				common.RunRemoteCommand(node, "top -b -d 15 -c -w 512 > top.txt 2>&1 &")
+			} else {
+				common.CopyRemoteFile(node, "top.txt", path.Join(outputDir, "top_" + node + ".txt"))
+			}
+		}(strings.TrimSpace(node))
+	}
+
+	wg.Wait() 
 }

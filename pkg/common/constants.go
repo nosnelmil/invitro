@@ -97,3 +97,8 @@ const (
 	AwsRegion                  = "us-east-1"
 	AwsTraceFuncRepositoryName = "invitro_trace_function_aws"
 )
+
+// Multi-loader Constants
+const (
+	TraceFormatString = "{}"
+)
