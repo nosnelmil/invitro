@@ -109,6 +109,7 @@ func main() {
 	}
 	// Check multi loader configuration
 	common.CheckMultiLoaderConfig(multiLoaderConfig, masterNode, autoscalerNode, activatorNode, loaderNode, workerNodes)
+	
 	// Dry run
 	log.Info("Starting dry run")
 	runMultiLoader(true)
@@ -116,6 +117,8 @@ func main() {
 		log.Fatal("Dry run failed. Exiting...")
 	}
 	log.Info("Dry run completed")
+
+	// Actual run
 	log.Info("Running experiments")
 	runMultiLoader(false)
 	// Finish
