@@ -20,8 +20,6 @@ import (
 )
 
 const (
-	rw_r__r__ = 0644
-	rwxr_xr_x = 0755
 	LOADER_PATH = "cmd/loader.go"
 	// LOADER_PATH = "cmd/test/test.go"
 	EXPERIMENT_TEMP_CONFIG_PATH = "cmd/multi_loader/current_running_config.json"
@@ -268,7 +266,7 @@ func prepareExperiment(subExperiment config.LoaderExperiment) {
 	// Create output directory
 	outputDir := path.Dir(experimentConfig.OutputPathPrefix)
 
-	if err := os.MkdirAll(outputDir, rwxr_xr_x); err != nil {
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		log.Fatal(err)
 	}
 	// Write experiment configs to temp file
@@ -397,8 +395,8 @@ func logLoaderStdOutput(stdPipe io.ReadCloser, logFile *os.File) {
 		if m == "" {
 			continue
 		}
-		logType := parseLogType(m)
-		message := parseLogMessage(m)
+		logType := common.ParseLogType(m)
+		message := common.ParseLogMessage(m)
 		
 		switch logType {
 		case "debug":
@@ -427,21 +425,7 @@ func logLoaderStdError(stdPipe io.ReadCloser, logFile *os.File) {
 	}
 }
 
-func parseLogType(m string) string {
-	logTypeArr := strings.Split(m, "level=")
-	if len(logTypeArr) > 1 {
-		return strings.Split(logTypeArr[1], " ")[0]
-	}
-	return "info"
-}
 
-func parseLogMessage(m string) string {
-	message := strings.Split(m, "msg=")
-	if len(message) > 1 {
-		return message[1][1 : len(message[1])-1]
-	}
-	return m
-}
 
 func collateLogs(experimentConfig config.LoaderExperiment) {
 	// collate logs
@@ -454,7 +438,7 @@ func collateLogs(experimentConfig config.LoaderExperiment) {
 	activatorLogDir := path.Join(experimentDir, "activator")
 	prometheusSnapshotDir := path.Join(experimentDir, "prometheus_snapshot")
 	
-	if err := os.MkdirAll(topDir, rwxr_xr_x); err != nil {
+	if err := os.MkdirAll(topDir, 0755); err != nil {
 		log.Fatal(err)
 	}
 	
@@ -481,7 +465,7 @@ func performCleanup() {
 
 func writeExperimentConfigToTempFile(experimentConfig config.LoaderConfiguration, fileWritePath string) {
 	experimentConfigBytes, _ := json.Marshal(experimentConfig)
-	err := os.WriteFile(fileWritePath, experimentConfigBytes, rw_r__r__)
+	err := os.WriteFile(fileWritePath, experimentConfigBytes, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
