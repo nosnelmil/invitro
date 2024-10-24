@@ -38,14 +38,14 @@ func IsValidIP(ip string) bool {
     return parsedIP != nil
 }
 
-func CheckMultiLoaderConfig(multiLoaderConfig config.MutliLoaderConfiguration,masterNode string, autoscalerNode string, activatorNode string, loaderNode string, workerNodes []string) {
+func CheckMultiLoaderConfig(multiLoaderConfig config.MutliLoaderConfiguration, nodeGroup NodeGroup) {
 	log.Info("Checking multi-loader configuration")
 	// check if nodes if executeRemotely is true
-	CheckNode(masterNode)
-	CheckNode(autoscalerNode)
-	CheckNode(activatorNode)
-	CheckNode(loaderNode)
-	for _, node := range workerNodes {
+	CheckNode(nodeGroup.MasterNode)
+	CheckNode(nodeGroup.AutoScalerNode)
+	CheckNode(nodeGroup.ActivatorNode)
+	CheckNode(nodeGroup.LoaderNode)
+	for _, node := range nodeGroup.WorkerNodes {
 		CheckNode(node)
 	}
 	log.Info("Nodes are reachable")

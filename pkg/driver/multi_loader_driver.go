@@ -31,7 +31,7 @@ const (
 
 type MultiLoaderDriver struct {
     MultiLoaderConfig config.MutliLoaderConfiguration
-    NodeGroup NodeGroup
+    NodeGroup common.NodeGroup
     DryRunSuccess bool
     Logger       *log.Logger
 	Verbosity	string
@@ -40,20 +40,15 @@ type MultiLoaderDriver struct {
 	DryRun bool
 }
 
-type NodeGroup struct {
-    MasterNode     string
-    AutoScalerNode string
-    ActivatorNode  string
-    LoaderNode     string
-    WorkerNodes    []string
-}
-
 // Initialize the Driver with config and logger
 func NewMultiLoaderDriver(configPath string, logger *log.Logger, verbosity string, iatGeneration bool, generated bool) (*MultiLoaderDriver, error) {
     multiLoaderConfig := config.ReadMultiLoaderConfigurationFile(configPath)
     
     // Determine nodes (same as in your code)
     nodeGroup := determineNodes(multiLoaderConfig)
+
+	// Validate config and nodes
+	common.CheckMultiLoaderConfig(multiLoaderConfig, nodeGroup)
 
     return &MultiLoaderDriver{
         MultiLoaderConfig: multiLoaderConfig,
@@ -67,8 +62,8 @@ func NewMultiLoaderDriver(configPath string, logger *log.Logger, verbosity strin
     }, nil
 }
 
-func determineNodes(multiLoaderConfig config.MutliLoaderConfiguration) NodeGroup {
-	var nodeGroup NodeGroup
+func determineNodes(multiLoaderConfig config.MutliLoaderConfiguration) common.NodeGroup {
+	var nodeGroup common.NodeGroup
 	nodeGroup.MasterNode = multiLoaderConfig.MasterNode
 	nodeGroup.AutoScalerNode = multiLoaderConfig.AutoScalerNode
 	nodeGroup.ActivatorNode = multiLoaderConfig.ActivatorNode
@@ -404,8 +399,6 @@ func (d *MultiLoaderDriver) logLoaderStdError(stdPipe io.ReadCloser, logFile *os
 		log.Error(m)
 	}
 }
-
-
 
 func (d *MultiLoaderDriver) collateLogs(experimentConfig config.LoaderExperiment) {
 	// collate logs
