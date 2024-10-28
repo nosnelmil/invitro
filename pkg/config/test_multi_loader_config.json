@@ -1,0 +1,17 @@
+{
+    "Experiments": [
+        {
+            "Name": "experiment1",
+            "Config": {
+                "ExperimentDuration": 1
+            },
+            "IatGeneration": false,
+            "Generated": false,
+            "Verbosity": "info",
+            "TracesFormat": "data/traces/multi-exp-test/{}",
+            "TraceValues": ["example"],
+            "OutputDir": "data/out/multi-test"
+        }
+    ],
+    "BaseConfigPath": "pkg/config/test_config.json"
+}
