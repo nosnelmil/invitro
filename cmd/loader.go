@@ -187,7 +187,7 @@ func runTraceMode(cfg *config.LoaderConfiguration, iatOnly bool, generated bool)
 
 		Functions: functions,
 	})
-	
+	log.Info("dryRun: ", *dryRun)
 	if *dryRun {
 		return
 	}
