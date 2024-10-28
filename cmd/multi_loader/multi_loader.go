@@ -6,7 +6,6 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/vhive-serverless/loader/pkg/config"
 	"github.com/vhive-serverless/loader/pkg/driver"
 )
 
@@ -15,12 +14,6 @@ var (
     verbosity     = flag.String("verbosity", "info", "Logging verbosity - choose from [info, debug, trace]")
     iatGeneration = flag.Bool("iatGeneration", false, "Generate iats only and skip invocations")
 	generated     = flag.Bool("generated", false, "If iats were already generated")
-
-	multiLoaderConfig = config.MutliLoaderConfiguration{}
-	masterNode, autoscalerNode, activatorNode, loaderNode string
-	workerNodes                                         []string
-
-	dryRunSuccess = true
 
 	// Temp flag to run loader on remote node
 	syncConfig	 = flag.Bool("syncConfig", false, "sync loader on remote node")
@@ -52,6 +45,13 @@ func initLogger() *log.Logger {
 func main() {
 	// Initialize logger
 	log := initLogger()
+
+	// Sync config
+	if *syncConfig {
+		log.Info("Syncing loader on remote node")
+		driver.SyncLoaderConfig()
+		return
+	}
 	
 	log.Info("Starting multiloader")
 	// Create multi loader driver

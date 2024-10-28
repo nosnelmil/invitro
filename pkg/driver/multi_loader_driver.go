@@ -26,7 +26,7 @@ const (
 	INVITRO_BASE_PATH = "~/loader/"
 	NUM_OF_RETRIES = 2
 	TIME_FORMAT = "Jan_02_1504"
-	LOADER_NODE_ADD = "Lenson@pc717.emulab.net"
+	LOADER_NODE_ADD = "Lenson@pc808.emulab.net"
 )
 
 type MultiLoaderDriver struct {
@@ -445,22 +445,22 @@ func (d *MultiLoaderDriver) writeExperimentConfigToTempFile(experimentConfig con
 }
 
 // TEMPORARY FUNCTIONS
-func (d *MultiLoaderDriver) SyncLoaderConfig() {
+func SyncLoaderConfig() {
 	log.Info("Running loader on remote node")
 	// Sync multi-loader configurations
 	log.Info("Syncing multi-loader configurations")
-	d.syncToRemoteFile(LOADER_NODE_ADD, "./cmd/multi_loader/", INVITRO_BASE_PATH + "cmd/multi_loader")
+	syncToRemoteFile(LOADER_NODE_ADD, "./cmd/multi_loader/", INVITRO_BASE_PATH + "cmd/multi_loader")
 	// Sync trace files
 	log.Info("Syncing trace files")
-	d.syncToRemoteFile(LOADER_NODE_ADD, "./data/traces/", INVITRO_BASE_PATH + "data/traces")
+	syncToRemoteFile(LOADER_NODE_ADD, "./data/traces/", INVITRO_BASE_PATH + "data/traces")
 	// Sync scripts
 	log.Info("Syncing scripts")
-	d.syncToRemoteFile(LOADER_NODE_ADD, "./scripts/", INVITRO_BASE_PATH + "scripts")
+	syncToRemoteFile(LOADER_NODE_ADD, "./scripts/", INVITRO_BASE_PATH + "scripts")
 
 	log.Info("Done syncing")
 }
 
-func (d *MultiLoaderDriver) syncToRemoteFile(remoteNode string, src string, dest string) {
+func syncToRemoteFile(remoteNode string, src string, dest string) {
 	cmd := exec.Command("rsync", "-a", src, remoteNode + ":" + dest)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
