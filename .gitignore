@@ -3,7 +3,7 @@ analysis
 .vscode/
 .idea
 tmp
-data/out
+data/out/*
 data/azure
 !data/traces/example/
 pkg/generator/*.png
