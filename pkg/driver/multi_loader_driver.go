@@ -135,7 +135,7 @@ func (d *MultiLoaderDriver) runMultiLoader(){
 		// Run each experiment
 		for _, subExperiment := range subExperiments {
 			if d.DryRun{
-				log.Info("Dry Running: ", subExperiment.Name)
+				d.Logger.Info("Dry Running: ", subExperiment.Name)
 			}
 			
 			// Prepare experiment
