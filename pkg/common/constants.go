@@ -113,11 +113,10 @@ const (
 
 // Multi-loader possible collectable metrics
 const (
-	Activator = "activator"
-	AutoScaler = "autoscaler"
-	TOP = "top"
-	Prometheus = "prometheus"
+	Activator string = "activator"
+	AutoScaler string = "autoscaler"
+	TOP string = "top"
+	Prometheus string = "prometheus"
 )
 
 var ValidCollectableMetrics = []string{Activator, AutoScaler, TOP, Prometheus}
-
