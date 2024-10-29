@@ -189,7 +189,7 @@ function extend_CIDR() {
 }
 
 function clone_loader() {
-    server_exec $1 "git clone --depth=1 --branch=$LOADER_BRANCH https://github.com/vhive-serverless/invitro.git loader"
+    server_exec $1 "git clone --depth=1 --branch=$LOADER_BRANCH https://github.com/nosnelmil/invitro.git loader"
     server_exec $1 'echo -en "\n\n" | sudo apt-get install -y python3-pip python-dev'
     server_exec $1 'cd; cd loader; pip install -r config/requirements.txt'
 }
@@ -224,9 +224,11 @@ function distribute_loader_ssh_key() {
     server_exec $LOADER_NODE 'eval "$(ssh-agent -s)" && ssh-add'
     # Copy public key into all nodes authorized_keys
     rsync $LOADER_NODE:~/.ssh/id_rsa.pub ./loader_sshpub
-    for node in $ALL_NODES; do 
+    for node in $ALL_NODES; do
         cat ./loader_sshpub | ssh $node 'cat >> ~/.ssh/authorized_keys' &
     done
+
+    wait
 
     wait
     # clean up

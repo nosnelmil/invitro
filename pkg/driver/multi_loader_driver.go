@@ -150,14 +150,14 @@ func (d *MultiLoaderDriver) runMultiLoader(){
 			d.performCleanup()
 			// Check if should continue
 			if !shouldContinue {
-				log.Info("Experiment failed: ", subExperiment.Name, ". Skipping remaining experiments in study...")
+				d.Logger.Info("Experiment failed: ", subExperiment.Name, ". Skipping remaining experiments in study...")
 				break
 			}
 		}
 		// Run post script
 		common.RunScript(experiment.PostScript)
 		if len(subExperiments) > 1 && !d.DryRun{
-			log.Info("All experiments for ", experiment.Name, " completed")
+			d.Logger.Info("All experiments for ", experiment.Name, " completed")
 		}
 	}
 	// Run global postscript
@@ -167,7 +167,7 @@ func (d *MultiLoaderDriver) runMultiLoader(){
 // The role of this function is just to create partial loader configs 
 // and the values will override values in the base loader config later
 func (d *MultiLoaderDriver) unpackExperiment(experiment config.LoaderExperiment) []config.LoaderExperiment {
-	log.Info("Unpacking experiment ", experiment.Name)
+	d.Logger.Info("Unpacking experiment ", experiment.Name)
 	var subExperiments []config.LoaderExperiment
 
 	// If user specified a trace directory
@@ -188,7 +188,7 @@ func (d *MultiLoaderDriver) unpackFromTraceDir(experiment config.LoaderExperimen
 	var subExperiments []config.LoaderExperiment
 	files, err := os.ReadDir(experiment.TracesDir)
 	if err != nil {
-		log.Fatal(err)
+		d.Logger.Fatal(err)
 	}
 
 	for _, file := range files {
@@ -223,7 +223,7 @@ func (d *MultiLoaderDriver) unpackSingleExperiment(experiment config.LoaderExper
 func (d *MultiLoaderDriver) createNewExperiment(experiment config.LoaderExperiment, fileName string) config.LoaderExperiment {
 	newExperiment, err := common.DeepCopy(experiment)
 	if err != nil {
-		log.Fatal(err)
+		d.Logger.Fatal(err)
 	}
 
 	dryRunAdditionalPath := ""
@@ -256,7 +256,7 @@ func (d *MultiLoaderDriver) addCommandFlags(experiment config.LoaderExperiment) 
 }
 
 func (d *MultiLoaderDriver) prepareExperiment(subExperiment config.LoaderExperiment) {
-	log.Info("Preparing ", subExperiment.Name)
+	d.Logger.Info("Preparing ", subExperiment.Name)
 	// Merge base configs with experiment configs
 	experimentConfig := d.mergeConfigurations(d.MultiLoaderConfig.BaseConfigPath, subExperiment)
     
@@ -264,7 +264,7 @@ func (d *MultiLoaderDriver) prepareExperiment(subExperiment config.LoaderExperim
 	outputDir := path.Dir(experimentConfig.OutputPathPrefix)
 
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		log.Fatal(err)
+		d.Logger.Fatal(err)
 	}
 	// Write experiment configs to temp file
 	d.writeExperimentConfigToTempFile(experimentConfig, EXPERIMENT_TEMP_CONFIG_PATH)
@@ -295,24 +295,24 @@ func (d *MultiLoaderDriver) mergeConfigurations(baseConfigPath string, experimen
 	// Read base configuration
 	baseConfigByteValue, err := os.ReadFile(baseConfigPath)
 	if err != nil {
-		log.Fatal(err)
+		d.Logger.Fatal(err)
 	}
-	log.Debug("Experiment configuration ", experiment.Config)
+	d.Logger.Debug("Experiment configuration ", experiment.Config)
 	
 	var mergedConfig config.LoaderConfiguration
 	// Unmarshal base configuration
 	if err = json.Unmarshal(baseConfigByteValue, &mergedConfig); err != nil {
-		log.Fatal(err)
+		d.Logger.Fatal(err)
 	}
 
-	log.Debug("Base configuration ", mergedConfig)
+	d.Logger.Debug("Base configuration ", mergedConfig)
 	
 	// merge experiment config onto base config
 	experimentConfigBytes, _ := json.Marshal(experiment.Config)
 	if err = json.Unmarshal(experimentConfigBytes, &mergedConfig); err != nil {
-		log.Fatal(err)
+		d.Logger.Fatal(err)
 	}
-	log.Debug("Merged configuration ", mergedConfig)
+	d.Logger.Debug("Merged configuration ", mergedConfig)
 
 	return mergedConfig
 }
@@ -324,31 +324,31 @@ func (d *MultiLoaderDriver) mergeConfigurations(baseConfigPath string, experimen
  * @return should experiment continue
  */
 func (d *MultiLoaderDriver) runExperiment(experiment config.LoaderExperiment) bool {
-	log.Info("Running ", experiment.Name)
-	log.Debug("Experiment configuration ", experiment.Config)
+	d.Logger.Info("Running ", experiment.Name)
+	d.Logger.Debug("Experiment configuration ", experiment.Config)
 
 	// Create the log file
 	logFilePath := path.Join(path.Dir(experiment.Config["OutputPathPrefix"].(string)), "loader.log")
 	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
-		log.Fatal(err)
+		d.Logger.Fatal(err)
 	}
 	defer logFile.Close()
 
 	for i := 0; i < NUM_OF_RETRIES; i++ {
 		// Run loader.go with experiment configs
 		if err := d.executeLoaderCommand(experiment, logFile); err != nil {
-			log.Error(err)
-			log.Error("Experiment failed: ", experiment.Name)
+			d.Logger.Error(err)
+			d.Logger.Error("Experiment failed: ", experiment.Name)
 			logFile.WriteString("Experiment failed: " + experiment.Name + ". Error: " + err.Error() + "\n")
 			if i == 0 && !d.DryRun {
-				log.Info("Retrying experiment ", experiment.Name)
+				d.Logger.Info("Retrying experiment ", experiment.Name)
 				logFile.WriteString("==================================RETRYING==================================\n")
 				experiment.Verbosity = "debug"
 			} else{
 				// Experiment failed set dry run flag to false
 				d.DryRunSuccess = false
-				log.Error("Check log file for more information: ", logFilePath)
+				d.Logger.Error("Check log file for more information: ", logFilePath)
 				// should not continue with experiment
 				return false
 			}
@@ -357,7 +357,7 @@ func (d *MultiLoaderDriver) runExperiment(experiment config.LoaderExperiment) bo
 			break
 		}
 	}
-	log.Info("Completed ", experiment.Name)
+	d.Logger.Info("Completed ", experiment.Name)
 	return true
 }
 
@@ -399,12 +399,12 @@ func (d *MultiLoaderDriver) logLoaderStdOutput(stdPipe io.ReadCloser, logFile *o
 		
 		switch logType {
 		case "debug":
-			log.Debug(message)
+			d.Logger.Debug(message)
 		case "trace":
-			log.Trace(message)
+			d.Logger.Trace(message)
 		default:
 			if strings.Contains(message, "Number of successful invocations:") || strings.Contains(message, "Number of failed invocations:") {
-				log.Info(strings.ReplaceAll(message, "\\t", " ",))
+				d.Logger.Info(strings.ReplaceAll(message, "\\t", " ",))
 			}
 		}
 	}
@@ -420,7 +420,7 @@ func (d *MultiLoaderDriver) logLoaderStdError(stdPipe io.ReadCloser, logFile *os
 		if m == "" {
 			continue
 		}
-		log.Error(m)
+		d.Logger.Error(m)
 	}
 }
 
@@ -430,14 +430,14 @@ func (d *MultiLoaderDriver) collateMetrics(experimentConfig config.LoaderExperim
 		return
 	}
 	// collate Metrics
-	log.Info("Collating Metrics")
+	d.Logger.Info("Collating Metrics")
 	experimentDir := path.Dir(experimentConfig.Config["OutputPathPrefix"].(string))
 	
 	if(d.shouldCollectMetric(common.TOP)) {
 		// Collect top Metrics
 		topDir := path.Join(experimentDir, "top")
 		if err := os.MkdirAll(topDir, 0755); err != nil {
-			log.Fatal(err)
+			d.Logger.Fatal(err)
 		}
 		d.topProcessMetrics(topDir, false)
 	}
@@ -462,12 +462,12 @@ func (d *MultiLoaderDriver) collateMetrics(experimentConfig config.LoaderExperim
 }
 
 func (d *MultiLoaderDriver) performCleanup() {
-	log.Info("Runnning Cleanup")
+	d.Logger.Info("Runnning Cleanup")
 	// Run make clean
 	if err := exec.Command("make", "clean").Run(); err != nil {
-		log.Error(err)
+		d.Logger.Error(err)
 	}
-	log.Info("Cleanup completed")
+	d.Logger.Info("Cleanup completed")
 	// Remove temp file
 	os.Remove(EXPERIMENT_TEMP_CONFIG_PATH)
 }
@@ -476,7 +476,7 @@ func (d *MultiLoaderDriver) writeExperimentConfigToTempFile(experimentConfig con
 	experimentConfigBytes, _ := json.Marshal(experimentConfig)
 	err := os.WriteFile(fileWritePath, experimentConfigBytes, 0644)
 	if err != nil {
-		log.Fatal(err)
+		d.Logger.Fatal(err)
 	}
 }
 

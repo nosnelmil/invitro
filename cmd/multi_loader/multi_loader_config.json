@@ -1,7 +1,7 @@
 {
     "Experiments": [
-       {
-            "Name": "experiment2",
+        {
+            "Name": "experiment1",
             "Config": {
                 "ExperimentDuration": 1
             },
@@ -12,16 +12,17 @@
             "TracesFormat": "data/traces/multi-exp-test/example_{}_test",
             "TraceValues": [1],
             "OutputDir": "data/out/multi-test",
-            "PreScriptPath": "",
-            "PostScriptPath": ""
-        }   
+            "PreScript": "",
+            "PostScript": ""
+        }
     ],
-    "PreScriptPath": "",
-    "PostScriptPath": "",
+    "PreScript": "",
+    "PostScript": "",
     "BaseConfigPath": "cmd/multi_loader/base_loader_config.json",
-    "MasterNode": "Lenson@10.0.1.1",
-    "AutoScalerNode": "Lenson@10.0.1.1",
-    "ActivatorNode": "Lenson@10.0.1.1",
-    "LoaderNode": "Lenson@pc747.emulab.net",
-    "WorkerNodes": ["Lenson@10.0.1.3"]
+    "MasterNode": "",
+    "AutoScalerNode": "",
+    "ActivatorNode": "",
+    "LoaderNode": "",
+    "WorkerNodes": [],
+    "Metrics": ["activator"]
 }

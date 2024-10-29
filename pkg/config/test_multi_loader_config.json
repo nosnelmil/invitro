@@ -1,14 +1,14 @@
 {
     "Experiments": [
         {
-            "Name": "experiment1",
+            "Name": "test-experiment",
             "Config": {
                 "ExperimentDuration": 1
             },
             "IatGeneration": false,
             "Generated": false,
             "Verbosity": "info",
-            "TracesFormat": "data/traces/multi-exp-test/{}",
+            "TracesFormat": "data/traces/{}",
             "TraceValues": ["example"],
             "OutputDir": "data/out/multi-test"
         }
