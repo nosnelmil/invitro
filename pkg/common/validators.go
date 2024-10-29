@@ -92,6 +92,12 @@ func CheckCPULimit(cpuLimit string) {
 	}
 }
 
+func CheckSupportedPlatform(platform string) {
+	if !slices.Contains(SupportedPlatforms, platform) {
+		log.Fatal("Unsupported platform! Supported platforms are [Knative, OpenWhisk, AWSLambda, Dirigent]")
+	}
+}
+
 func CheckCollectableMetrics(metrics string) {
 	if !slices.Contains(ValidCollectableMetrics, metrics) {
 		log.Fatal("Invalid metrics ", metrics)

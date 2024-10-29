@@ -106,6 +106,15 @@ const (
 
 var ValidCPULimits = []string{CPULimit1vCPU, CPULimitGCP}
 
+// Supported Platforms
+const (
+	Knative    string = "Knative"
+	OpenWhisk  string = "OpenWhisk"
+	AWSLambda  string = "AWSLambda"
+	Dirigent   string = "Dirigent"
+)
+var SupportedPlatforms = []string{Knative, OpenWhisk, AWSLambda, Dirigent}
+
 // Multi-loader Constants
 const (
 	TraceFormatString = "{}"
