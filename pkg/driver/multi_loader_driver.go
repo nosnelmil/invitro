@@ -38,17 +38,24 @@ type MultiLoaderDriver struct {
 	IatGeneration	bool
 	Generated	bool
 	DryRun bool
+	Platform string
 }
 
 // Initialize the Driver with config and logger
 func NewMultiLoaderDriver(configPath string, logger *log.Logger, verbosity string, iatGeneration bool, generated bool) (*MultiLoaderDriver, error) {
     multiLoaderConfig := config.ReadMultiLoaderConfigurationFile(configPath)
+
+	// Determine platform
+	platform := determinePlatform(multiLoaderConfig)
     
     // Determine nodes (same as in your code)
-    nodeGroup := determineNodes(multiLoaderConfig)
+	var nodeGroup common.NodeGroup
+	if platform == common.Knative {
+		nodeGroup = determineNodes(multiLoaderConfig)
+	}
 
 	// Validate config and nodes
-	common.CheckMultiLoaderConfig(multiLoaderConfig, nodeGroup)
+	common.CheckMultiLoaderConfig(multiLoaderConfig, nodeGroup, platform)
 
     return &MultiLoaderDriver{
         MultiLoaderConfig: multiLoaderConfig,
@@ -59,7 +66,22 @@ func NewMultiLoaderDriver(configPath string, logger *log.Logger, verbosity strin
 		IatGeneration: iatGeneration,
 		Generated: generated,
 		DryRun: false,
+		Platform: platform,
     }, nil
+}
+
+func determinePlatform(multiLoaderConfig config.MutliLoaderConfiguration) string {
+	// Determine platform
+	baseConfigByteValue, err := os.ReadFile(multiLoaderConfig.BaseConfigPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	var loaderConfig config.LoaderConfiguration
+	// Unmarshal base configuration
+	if err = json.Unmarshal(baseConfigByteValue, &loaderConfig); err != nil {
+		log.Fatal(err)
+	}
+	return loaderConfig.Platform
 }
 
 func determineNodes(multiLoaderConfig config.MutliLoaderConfiguration) common.NodeGroup {
@@ -247,7 +269,7 @@ func (d *MultiLoaderDriver) prepareExperiment(subExperiment config.LoaderExperim
 	// Write experiment configs to temp file
 	d.writeExperimentConfigToTempFile(experimentConfig, EXPERIMENT_TEMP_CONFIG_PATH)
 
-	if shouldCollectMetric(d.MultiLoaderConfig.Metrics, common.TOP) {
+	if d.shouldCollectMetric(common.TOP) {
 		// Reset TOP
 		d.topProcessMetrics(outputDir, true)
 	}
@@ -411,7 +433,7 @@ func (d *MultiLoaderDriver) collateMetrics(experimentConfig config.LoaderExperim
 	log.Info("Collating Metrics")
 	experimentDir := path.Dir(experimentConfig.Config["OutputPathPrefix"].(string))
 	
-	if(shouldCollectMetric(d.MultiLoaderConfig.Metrics, common.TOP)) {
+	if(d.shouldCollectMetric(common.TOP)) {
 		// Collect top Metrics
 		topDir := path.Join(experimentDir, "top")
 		if err := os.MkdirAll(topDir, 0755); err != nil {
@@ -420,19 +442,19 @@ func (d *MultiLoaderDriver) collateMetrics(experimentConfig config.LoaderExperim
 		d.topProcessMetrics(topDir, false)
 	}
 	
-	if(shouldCollectMetric(d.MultiLoaderConfig.Metrics, common.AutoScaler)) {
+	if(d.shouldCollectMetric(common.AutoScaler)) {
 		// Retrieve auto scaler logs
 		autoScalerLogDir := path.Join(experimentDir, "autoscaler")
 		metric.RetrieveAutoScalerLogs(d.NodeGroup.AutoScalerNode, autoScalerLogDir)
 	}
 
-	if(shouldCollectMetric(d.MultiLoaderConfig.Metrics, common.Activator)) {
+	if(d.shouldCollectMetric(common.Activator)) {
 		// Retrieve activator logs
 		activatorLogDir := path.Join(experimentDir, "activator")
 		metric.RetrieveActivatorLogs(d.NodeGroup.ActivatorNode, activatorLogDir)
 	}
 	
-	if(shouldCollectMetric(d.MultiLoaderConfig.Metrics, common.Prometheus)) {
+	if(d.shouldCollectMetric(common.Prometheus)) {
 		// Retrieve prometheus snapshot
 		prometheusSnapshotDir := path.Join(experimentDir, "prometheus_snapshot")
 		metric.RetrievePrometheusSnapshot(d.NodeGroup.MasterNode, prometheusSnapshotDir)
@@ -459,8 +481,12 @@ func (d *MultiLoaderDriver) writeExperimentConfigToTempFile(experimentConfig con
 }
 
 // Helper functions
-func shouldCollectMetric(metrics []string, targetMetrics string) bool {
-	for _, metric := range metrics {
+func (d *MultiLoaderDriver) shouldCollectMetric(targetMetrics string) bool {
+	// Only collect for Knative
+	if (d.Platform != common.Knative) {
+		return false
+	}
+	for _, metric := range d.MultiLoaderConfig.Metrics {
 		if metric == targetMetrics {
 			return true
 		}

@@ -39,21 +39,23 @@ func IsValidIP(ip string) bool {
     return parsedIP != nil
 }
 
-func CheckMultiLoaderConfig(multiLoaderConfig config.MutliLoaderConfiguration, nodeGroup NodeGroup) {
+func CheckMultiLoaderConfig(multiLoaderConfig config.MutliLoaderConfiguration, nodeGroup NodeGroup, platform string) {
 	log.Info("Checking multi-loader configuration")
-	// Check if metrics are valid
-	for _, metric := range multiLoaderConfig.Metrics {
-		CheckCollectableMetrics(metric)
+	if platform == Knative {
+		// Check if metrics are valid
+		for _, metric := range multiLoaderConfig.Metrics {
+			CheckCollectableMetrics(metric)
+		}
+		// Check nodes
+		CheckNode(nodeGroup.MasterNode)
+		CheckNode(nodeGroup.AutoScalerNode)
+		CheckNode(nodeGroup.ActivatorNode)
+		CheckNode(nodeGroup.LoaderNode)
+		for _, node := range nodeGroup.WorkerNodes {
+			CheckNode(node)
+		}
+		log.Info("Nodes are reachable")
 	}
-	// check if nodes if executeRemotely is true
-	CheckNode(nodeGroup.MasterNode)
-	CheckNode(nodeGroup.AutoScalerNode)
-	CheckNode(nodeGroup.ActivatorNode)
-	CheckNode(nodeGroup.LoaderNode)
-	for _, node := range nodeGroup.WorkerNodes {
-		CheckNode(node)
-	}
-	log.Info("Nodes are reachable")
 	// Check if all paths are valid
 	CheckPath(multiLoaderConfig.BaseConfigPath)
 	// Check each experiments
