@@ -110,3 +110,13 @@ var ValidCPULimits = []string{CPULimit1vCPU, CPULimitGCP}
 const (
 	TraceFormatString = "{}"
 )
+
+// Milti-loader possible collectable metrics
+const (
+	Activator = "activator"
+	AutoScaler = "autoscaler"
+	TOP = "top"
+	Prometheus = "prometheus"
+)
+
+var ValidCollectableMetrics = []string{Activator, AutoScaler, TOP, Prometheus}

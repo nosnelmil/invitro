@@ -122,7 +122,7 @@ func (d *MultiLoaderDriver) runMultiLoader(){
 			shouldContinue := d.runExperiment(subExperiment)
 			// Collect logs
 			if !d.DryRun {
-				d.collateLogs(subExperiment)
+				d.collateMetrics(subExperiment)
 			}
 			// Perform cleanup
 			d.performCleanup()
@@ -247,8 +247,10 @@ func (d *MultiLoaderDriver) prepareExperiment(subExperiment config.LoaderExperim
 	// Write experiment configs to temp file
 	d.writeExperimentConfigToTempFile(experimentConfig, EXPERIMENT_TEMP_CONFIG_PATH)
 
-	// Reset TOP
-	d.topProcessMetrics(outputDir, true)
+	if shouldCollectMetric(d.MultiLoaderConfig.Metrics, common.TOP) {
+		// Reset TOP
+		d.topProcessMetrics(outputDir, true)
+	}
 }
 
 func (d *MultiLoaderDriver) topProcessMetrics(experimentPath string, reset bool) {
@@ -400,29 +402,41 @@ func (d *MultiLoaderDriver) logLoaderStdError(stdPipe io.ReadCloser, logFile *os
 	}
 }
 
-func (d *MultiLoaderDriver) collateLogs(experimentConfig config.LoaderExperiment) {
-	// collate logs
-	log.Info("Collating logs")
+func (d *MultiLoaderDriver) collateMetrics(experimentConfig config.LoaderExperiment) {
+	// Check if should collect metrics
+	if len(d.MultiLoaderConfig.Metrics) == 0 {
+		return
+	}
+	// collate Metrics
+	log.Info("Collating Metrics")
 	experimentDir := path.Dir(experimentConfig.Config["OutputPathPrefix"].(string))
 	
-	// Create log directories
-	topDir := path.Join(experimentDir, "top")
-	autoScalerLogDir := path.Join(experimentDir, "autoscaler")
-	activatorLogDir := path.Join(experimentDir, "activator")
-	prometheusSnapshotDir := path.Join(experimentDir, "prometheus_snapshot")
-	
-	if err := os.MkdirAll(topDir, 0755); err != nil {
-		log.Fatal(err)
+	if(shouldCollectMetric(d.MultiLoaderConfig.Metrics, common.TOP)) {
+		// Collect top Metrics
+		topDir := path.Join(experimentDir, "top")
+		if err := os.MkdirAll(topDir, 0755); err != nil {
+			log.Fatal(err)
+		}
+		d.topProcessMetrics(topDir, false)
 	}
 	
-	// Collect top logs
-	d.topProcessMetrics(topDir, false)
-	// Retrieve auto scaler logs
-	metric.RetrieveAutoScalerLogs(d.NodeGroup.AutoScalerNode, autoScalerLogDir)
-	// Retrieve activator logs
-	metric.RetrieveActivatorLogs(d.NodeGroup.ActivatorNode, activatorLogDir)
-	// Retrieve prometheus snapshot
-	metric.RetrievePrometheusSnapshot(d.NodeGroup.MasterNode, prometheusSnapshotDir)
+	if(shouldCollectMetric(d.MultiLoaderConfig.Metrics, common.AutoScaler)) {
+		// Retrieve auto scaler logs
+		autoScalerLogDir := path.Join(experimentDir, "autoscaler")
+		metric.RetrieveAutoScalerLogs(d.NodeGroup.AutoScalerNode, autoScalerLogDir)
+	}
+
+	if(shouldCollectMetric(d.MultiLoaderConfig.Metrics, common.Activator)) {
+		// Retrieve activator logs
+		activatorLogDir := path.Join(experimentDir, "activator")
+		metric.RetrieveActivatorLogs(d.NodeGroup.ActivatorNode, activatorLogDir)
+	}
+	
+	if(shouldCollectMetric(d.MultiLoaderConfig.Metrics, common.Prometheus)) {
+		// Retrieve prometheus snapshot
+		prometheusSnapshotDir := path.Join(experimentDir, "prometheus_snapshot")
+		metric.RetrievePrometheusSnapshot(d.NodeGroup.MasterNode, prometheusSnapshotDir)
+	}
 }
 
 func (d *MultiLoaderDriver) performCleanup() {
@@ -442,6 +456,16 @@ func (d *MultiLoaderDriver) writeExperimentConfigToTempFile(experimentConfig con
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+// Helper functions
+func shouldCollectMetric(metrics []string, targetMetrics string) bool {
+	for _, metric := range metrics {
+		if metric == targetMetrics {
+			return true
+		}
+	}
+	return false
 }
 
 // TEMPORARY FUNCTIONS

@@ -41,6 +41,10 @@ func IsValidIP(ip string) bool {
 
 func CheckMultiLoaderConfig(multiLoaderConfig config.MutliLoaderConfiguration, nodeGroup NodeGroup) {
 	log.Info("Checking multi-loader configuration")
+	// Check if metrics are valid
+	for _, metric := range multiLoaderConfig.Metrics {
+		CheckCollectableMetrics(metric)
+	}
 	// check if nodes if executeRemotely is true
 	CheckNode(nodeGroup.MasterNode)
 	CheckNode(nodeGroup.AutoScalerNode)
@@ -85,5 +89,11 @@ func CheckMultiLoaderConfig(multiLoaderConfig config.MutliLoaderConfiguration, n
 func CheckCPULimit(cpuLimit string) {
 	if !slices.Contains(ValidCPULimits, cpuLimit) {
 		log.Fatal("Invalid CPU Limit ", cpuLimit)
+	}
+}
+
+func CheckCollectableMetrics(metrics string) {
+	if !slices.Contains(ValidCollectableMetrics, metrics) {
+		log.Fatal("Invalid metrics ", metrics)
 	}
 }

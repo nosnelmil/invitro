@@ -69,6 +69,7 @@ type MutliLoaderConfiguration struct {
 	ActivatorNode 	string 				`json:"ActivatorNode"`
 	LoaderNode 		string 				`json:"LoaderNode"`
 	WorkerNodes 	[]string 			`json:"WorkerNodes"`
+	Metrics         []string			`json:"Metrics"`
 }
 
 type LoaderExperiment struct {
