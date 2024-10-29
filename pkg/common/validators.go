@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"slices"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -79,4 +80,10 @@ func CheckMultiLoaderConfig(multiLoaderConfig config.MutliLoaderConfiguration, n
 		}
 	}
 	log.Info("All experiments configs are valid")
+}
+
+func CheckCPULimit(cpuLimit string) {
+	if !slices.Contains(ValidCPULimits, cpuLimit) {
+		log.Fatal("Invalid CPU Limit ", cpuLimit)
+	}
 }

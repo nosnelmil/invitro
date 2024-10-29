@@ -103,6 +103,10 @@ func main() {
 		log.Fatal("Unsupported platform! Supported platforms are [Knative, OpenWhisk, AWSLambda, Dirigent]")
 	}
 
+	if cfg.Platform == "Knative" {
+		common.CheckCPULimit(cfg.CPULimit)
+	}
+
 	runTraceMode(&cfg, *iatGeneration, *generated)
 }
 
