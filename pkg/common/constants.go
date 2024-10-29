@@ -111,7 +111,7 @@ const (
 	TraceFormatString = "{}"
 )
 
-// Milti-loader possible collectable metrics
+// Multi-loader possible collectable metrics
 const (
 	Activator = "activator"
 	AutoScaler = "autoscaler"
@@ -120,3 +120,4 @@ const (
 )
 
 var ValidCollectableMetrics = []string{Activator, AutoScaler, TOP, Prometheus}
+
