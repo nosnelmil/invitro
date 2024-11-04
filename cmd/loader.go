@@ -30,6 +30,8 @@ import (
 	"os"
 	"time"
 
+	"golang.org/x/exp/slices"
+
 	"github.com/vhive-serverless/loader/pkg/common"
 	"github.com/vhive-serverless/loader/pkg/config"
 	"github.com/vhive-serverless/loader/pkg/driver"
@@ -90,11 +92,18 @@ func main() {
 		log.Fatal("Runtime duration should be longer, at least a minute.")
 	}
 
-	// Check if platform is supported
-	common.CheckSupportedPlatform(cfg.Platform)
-	
-	// Check if CPULimit is valid
-	if cfg.Platform == common.Knative {
+	supportedPlatforms := []string{
+		"Knative",
+		"OpenWhisk",
+		"AWSLambda",
+		"Dirigent",
+	}
+
+	if !slices.Contains(supportedPlatforms, cfg.Platform) {
+		log.Fatal("Unsupported platform! Supported platforms are [Knative, OpenWhisk, AWSLambda, Dirigent]")
+	}
+
+	if cfg.Platform == "Knative" {
 		common.CheckCPULimit(cfg.CPULimit)
 	}
 
