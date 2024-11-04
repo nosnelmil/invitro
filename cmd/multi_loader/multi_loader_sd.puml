@@ -1,19 +1,11 @@
 @startuml multi_loader_sd
 
-participant "local machine" as local
 participant "multi_loader (Loader Node)" as ml
 participant "loader (Loader node)" as l
 participant "master node" as mas
 participant "other nodes\n(Including master & loader)" as other
 
 autonumber
-alt executeRemotely == true
-  local ++
-  local -> ml: Sync multi-loader configurations
-  local -> ml: Sync data/traces dir
-  local -> ml: Sync scripts dir 
-  local -> ml --++: create tmux sessin & run multi_loader
-end
 ml -> ml: read multi_loader config file
 ml -> ml: run global prescript
 
@@ -43,7 +35,7 @@ loop for each experiment
       break if no error
       end
     end
-    ml->other: dump TOP information & killall (to kill or not to kill?)
+    ml->other: dump TOP information & killall
     ml->mas++: retrieve autoscaler,activator logs & prometheus snapshot
     return requested files
     ml->ml: perform cleanup (remove tempfiles & make clean)

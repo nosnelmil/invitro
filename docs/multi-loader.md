@@ -3,7 +3,7 @@
 A wrapper around loader to run multiple experiments at once with additional feature like validation, dry-run, log & metrics collection
 
 ## Prerequisites
-As a wrapper around loader, multi-loader requires the initial cluster setup to be completed. See [vHive Loader Create a Cluster](https://github.com/vhive-serverless/invitro/blob/main/docs/loader.md#create-a-cluster)
+As a wrapper around loader, multi-loader requires the initial cluster setup to be completed. See [vHive Loader to create a cluster](https://github.com/vhive-serverless/invitro/blob/main/docs/loader.md#create-a-cluster)
 
 ## Configuration
 ### Multi-Loader Configuration
@@ -54,6 +54,70 @@ As a wrapper around loader, multi-loader requires the initial cluster setup to b
 > For example, if `BaseConfigPath` has `ExperimentDuration` set to 5 minutes, and you define `ExperimentDuration` as 10 minutes in `Config`, that particular experiment will run for 10 minutes instead.
 
 ## Command Flags
+
+The multi-loader accepts the almost the same command-line flags as loader. 
+
+> **_Note_**: These flags will subsequently be used during the execution of loader.go for **<u>every experiment</u>**. If you would like to define these flag for specific experiments only, define it in [LoaderExperiment](#loaderexperiment)
+
+Available flags:
+
+- **`--multiLoaderConfig`** *(default: `cmd/multi_loader/multi_loader_config.json`)*:  
+  Specifies the path to the multi-loader configuration file. This file contains settings and parameters that define how the multi-loader operates [see above](#multi-loader-configuration)
+
+- **`--verbosity`** *(default: `info`)*:  
+    Sets the logging verbosity level. You can choose from the following options:
+    - `info`: Standard information messages.
+    - `debug`: Detailed debugging messages.
+    - `trace`: Extremely verbose logging, including detailed execution traces.
+
+- **`--iatGeneration`** *(default: `false`)*:  
+  If set to `true`, the multi-loader will generate inter-arrival times (IATs) only and skip the invocation of actual workloads. This is useful for scenarios where you want to analyze or generate IATs without executing the associated load.
+
+- **`--generated`** *(default: `false`)*:  
+  Indicates whether IATs have already been generated. If set to `true`, the multi-loader will use the existing IATs instead of generating new ones.
+
+
+## Multi-loader Overall Flow
+
+1. **Initialization**
+    - Flags for configuration file path, verbosity, IAT generation, and execution mode are parsed
+    - Logger is initialized based on verbosity level
+
+3. **Experiment Execution Flow**
+    - The multi-loader driver is instantiated with the provided configuration path.
+    - Cluster Nodes are derived for experiments (only for knative)
+    - A dry run is executed to validate the setup:
+        - If the dry run fails, the execution terminates.
+    - If the dry run succeeds, proceed to actual runs:
+        - Global pre-scripts are executed.
+        - Each experiment undergoes the following steps:
+            1. **Pre-Execution Setup**
+                - Experiment-specific pre-scripts are executed.
+                - Necessary directories and folders are created.
+                - Each sub-experiment is unpacked and prepared
+                - Restart TOP Process (only for knative)
+            2. **Experiment Invocation**
+                - The loader is executed with generated configurations and related flags
+            3. **Post-Execution Steps**
+                - Experiment-specific post-scripts are executed
+                - Metrics collection (only for knative)
+                - Cleanup tasks are performed
+  
+4. **Completion**
+    - Global post-scripts are executed.
+    - Run Make Clean
+
+### How the Dry Run Works
+
+The dry run mode executes the loader with the `--dryRun` flag set to true after the unpacking of experiments defined in the multi-loader configurations.
+
+In this mode, the loader performs the following actions:
+
+- **Configuration Validation**: It verifies the experiment configurations without deploying any functions or generating invocations.
+- **Error Handling**: If a fatal error occurs at any point, the experiment will halt immediately.
+
+The purpose is to ensure that your configurations are correct and to identify any potential issues before actual execution.
+
 
 
 
