@@ -50,7 +50,7 @@ func NewMultiLoaderDriver(configPath string, logger *log.Logger, verbosity strin
     
     // Determine nodes (same as in your code)
 	var nodeGroup common.NodeGroup
-	if platform == common.Knative {
+	if platform == "Knative" {
 		nodeGroup = determineNodes(multiLoaderConfig)
 	}
 
@@ -483,7 +483,7 @@ func (d *MultiLoaderDriver) writeExperimentConfigToTempFile(experimentConfig con
 // Helper functions
 func (d *MultiLoaderDriver) shouldCollectMetric(targetMetrics string) bool {
 	// Only collect for Knative
-	if (d.Platform != common.Knative) {
+	if (d.Platform != "Knative") {
 		return false
 	}
 	for _, metric := range d.MultiLoaderConfig.Metrics {

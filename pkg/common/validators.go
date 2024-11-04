@@ -41,7 +41,7 @@ func IsValidIP(ip string) bool {
 
 func CheckMultiLoaderConfig(multiLoaderConfig config.MutliLoaderConfiguration, nodeGroup NodeGroup, platform string) {
 	log.Info("Checking multi-loader configuration")
-	if platform == Knative {
+	if platform == "Knative" {
 		// Check if metrics are valid
 		for _, metric := range multiLoaderConfig.Metrics {
 			CheckCollectableMetrics(metric)
