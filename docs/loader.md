@@ -119,7 +119,7 @@ $ go run cmd/loader.go --config cmd/config.json
 
 Additionally, one can specify log verbosity argument as `--verbosity [info, debug, trace]`. The default value is `info`.
 
-To execute in a dry run mode without generating any load, use the `--dry-run` flag. This is useful for testing and validating configurations without executing actual requests.
+To execute in a dry run mode without generating any load, set the `--dry-run` flag to `true`. This is useful for testing and validating configurations without executing actual requests.
 
 For to configure the workload for load generator, please refer to `docs/configuration.md`.
 
