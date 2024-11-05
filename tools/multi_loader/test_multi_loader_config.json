@@ -13,5 +13,6 @@
             "OutputDir": "data/out/multi-test"
         }
     ],
-    "BaseConfigPath": "pkg/config/test_config.json"
+    "BaseConfigPath": "./base_loader_config.json",
+    "Platform": "test"
 }

@@ -1,4 +1,4 @@
-package driver
+package multi_loader
 
 import (
 	"bufio"

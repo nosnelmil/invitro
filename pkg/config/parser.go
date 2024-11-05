@@ -62,6 +62,7 @@ type MutliLoaderConfiguration struct {
 	Experiments 	[]LoaderExperiment 	`json:"Experiments"`
 	BaseConfigPath  string             	`json:"BaseConfigPath"`
 	// Optional
+	Platform 		string 				`json:"Platform"`
 	PreScript 		string 				`json:"PreScript"`
 	PostScript	 	string 				`json:"PostScript"`
 	MasterNode 		string 				`json:"MasterNode"`
