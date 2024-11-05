@@ -213,7 +213,12 @@ func (d *MultiLoaderDriver) unpackFromTraceValues(experiment config.LoaderExperi
 
 func (d *MultiLoaderDriver) unpackSingleExperiment(experiment config.LoaderExperiment) []config.LoaderExperiment {
 	var subExperiments []config.LoaderExperiment
-	pathDir := path.Dir(experiment.Config["OutputPathPrefix"].(string))
+	pathDir := ""
+	if experiment.Config["OutputPathPrefix"] != nil {
+		pathDir = path.Dir(experiment.Config["OutputPathPrefix"].(string))
+	} else {
+		pathDir = experiment.OutputDir
+	}
 	experiment.OutputDir = pathDir
 	newExperiment := d.createNewExperiment(experiment, experiment.Name)
 	subExperiments = append(subExperiments, newExperiment)

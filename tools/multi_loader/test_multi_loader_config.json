@@ -9,10 +9,10 @@
             "Generated": false,
             "Verbosity": "info",
             "TracesFormat": "data/traces/{}",
-            "TraceValues": ["example"],
+            "TraceValues": ["example", "example2"],
             "OutputDir": "data/out/multi-test"
         }
     ],
-    "BaseConfigPath": "./base_loader_config.json",
+    "BaseConfigPath": "./test_base_loader_config.json",
     "Platform": "test"
 }
