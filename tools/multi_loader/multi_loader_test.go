@@ -1,11 +1,10 @@
-package multi_loader
+package main
 
 import (
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/vhive-serverless/loader/pkg/config"
@@ -16,31 +15,19 @@ var (
 	configPath string
 )
 
-func initLogger() *log.Logger {
-	logger := log.New()
-	logger.SetFormatter(&log.TextFormatter{
-		TimestampFormat: time.StampMilli,
-		FullTimestamp:   true,
-	})
-	logger.SetOutput(os.Stdout)
-	logger.SetLevel(log.InfoLevel)
-	return logger
-}
 
 func init() {
 	wd, _ := os.Getwd()
-	multiLoaderTestConfigPath = filepath.Join(wd, "./test_multi_loader_config.json")
-	configPath = filepath.Join(wd, "./base_loader_config.json")
+	multiLoaderTestConfigPath = filepath.Join(wd, "./test_configs/test_multi_loader_config.json")
+	configPath = filepath.Join(wd, "./test_configs/base_loader_config.json")
 	log.Info("Test config path: ", multiLoaderTestConfigPath)
 	log.Info("Test config path: ", configPath)
 }
 
 // Test multi-loader unpack experiment
 func TestUnpackExperiment(t *testing.T) {
-	logger := initLogger()
-
 	// Create a new multi-loader driver with the test config path
-	multiLoader, err := NewMultiLoaderDriver(multiLoaderTestConfigPath, logger, "info", false, false)
+	multiLoader, err := NewMultiLoaderDriver(multiLoaderTestConfigPath, "info", false, false)
 	if err != nil {
 		t.Fatalf("Failed to create multi-loader driver: %v", err)
 	}
@@ -144,10 +131,8 @@ func TestUnpackExperiment(t *testing.T) {
 }
 
 func TestPrepareExperiment(t *testing.T) {
-	logger := initLogger()
-
 	// Create a new multi-loader driver with the test config path
-	multiLoader, err := NewMultiLoaderDriver(multiLoaderTestConfigPath, logger, "info", false, false)
+	multiLoader, err := NewMultiLoaderDriver(multiLoaderTestConfigPath, "info", false, false)
 	if err != nil {
 		t.Fatalf("Failed to create multi-loader driver: %v", err)
 	}
@@ -187,10 +172,8 @@ func TestPrepareExperiment(t *testing.T) {
 
 // Test mergeConfigurations method
 func TestMergeConfig(t *testing.T){
-	logger := initLogger()
-
 	// Create a new multi-loader driver with the test config path
-	multiLoader, err := NewMultiLoaderDriver(multiLoaderTestConfigPath, logger, "info", false, false)
+	multiLoader, err := NewMultiLoaderDriver(multiLoaderTestConfigPath, "info", false, false)
 	if err != nil {
 		t.Fatalf("Failed to create multi-loader driver: %v", err)
 	}
@@ -202,7 +185,7 @@ func TestMergeConfig(t *testing.T){
 			"OutputPathPrefix": "./test_output/example_1_test",
 		},
 	}
-	outputConfig := multiLoader.mergeConfigurations("./test_base_loader_config.json", experiment)
+	outputConfig := multiLoader.mergeConfigurations("./test_configs/test_base_loader_config.json", experiment)
 	// Check if the configurations are merged
 	if outputConfig.TracePath != "./test_multi_trace/example_1_test" {
 		t.Errorf("Expected TracePath to be './test_multi_trace/example_1_test', got %v", experiment.Config["TracePath"])
