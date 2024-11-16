@@ -55,6 +55,11 @@ func NewMultiLoaderRunner(configPath string, verbosity string, iatGeneration boo
 		DryRun: false,
 		Platform: platform,
     }
+
+	// Knative specific configurations
+	if platform == "Knative" || platform == "Knative-RPS" {
+		runner.NodeGroup = determineNodes(multiLoaderConfig)
+	}
 	
 	return &runner, nil
 }
@@ -71,6 +76,32 @@ func determinePlatform(multiLoaderConfig common.MultiLoaderConfiguration) string
 		log.Fatal(err)
 	}
 	return loaderConfig.Platform
+}
+
+func determineNodes(multiLoaderConfig common.MultiLoaderConfiguration) common.NodeGroup {
+	var nodeGroup common.NodeGroup
+	nodeGroup.MasterNode = multiLoaderConfig.MasterNode
+	nodeGroup.AutoScalerNode = multiLoaderConfig.AutoScalerNode
+	nodeGroup.ActivatorNode = multiLoaderConfig.ActivatorNode
+	nodeGroup.LoaderNode = multiLoaderConfig.LoaderNode
+	nodeGroup.WorkerNodes = multiLoaderConfig.WorkerNodes
+
+	if len(nodeGroup.WorkerNodes) == 0 {
+		nodeGroup.WorkerNodes = common.DetermineWorkerNodes()
+	}
+	if nodeGroup.MasterNode == "" {
+		nodeGroup.MasterNode = common.DetermineMasterNode()
+	}
+	if nodeGroup.LoaderNode  == "" {
+		nodeGroup.LoaderNode = common.DetermineLoaderNode()
+	}
+	if nodeGroup.AutoScalerNode == "" {
+		nodeGroup.AutoScalerNode = common.DetermineOtherNodes("autoscaler")
+	}
+	if nodeGroup.ActivatorNode == "" {
+		nodeGroup.ActivatorNode = common.DetermineOtherNodes("activator")
+	}
+	return nodeGroup
 }
 
 func (d *MultiLoaderRunner) RunDryRun() {

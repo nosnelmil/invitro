@@ -6,6 +6,12 @@ type MultiLoaderConfiguration struct {
 	// Optional
 	PreScript 		string 					`json:"PreScript"`
 	PostScript	 	string 					`json:"PostScript"`
+	MasterNode 		string 					`json:"MasterNode"`
+	AutoScalerNode 	string 					`json:"AutoScalerNode"`
+	ActivatorNode 	string 					`json:"ActivatorNode"`
+	LoaderNode 		string 					`json:"LoaderNode"`
+	WorkerNodes 	[]string 				`json:"WorkerNodes"`
+	Metrics         []string				`json:"Metrics"`
 }
 
 type LoaderStudy struct {
