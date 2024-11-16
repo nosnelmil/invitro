@@ -29,6 +29,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -123,4 +124,52 @@ func RetrieveActivatorLogs(node string, outputDir string){
 	}
 	// Retrieve activator logs
 	common.CopyRemoteFile(node, "/var/log/pods/knative-serving_activator-*/activator/*", outputDir)
+}
+
+func RetrievePrometheusSnapshot(node string, outputDir string){
+	err := os.MkdirAll(outputDir, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Retrieve prometheus snapshot
+	i := 10
+	var prometheusSnapshot common.PrometheusSnapshot
+	for i > 0{
+		cmd := exec.Command("ssh", node, "curl -XPOST http://localhost:9090/api/v1/admin/tsdb/snapshot")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Warn("Failed to retrieve prometheus snapshot: ", err, "Retrying...")
+			i--
+			continue
+		}
+		re := regexp.MustCompile(`\{.*\}`)
+		jsonBytes := re.Find(out)
+		err = json.Unmarshal(jsonBytes, &prometheusSnapshot)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+		if prometheusSnapshot.Status != "success" {
+			if i == 1{
+				log.Error("Prometheus Snapshot failed")
+			}else{
+				log.Info("Prometheus Snapshot not ready. Retrying...")
+			}
+			i--
+			continue
+		}
+		break
+	}
+	if prometheusSnapshot.Status != "success" {
+		log.Error("Prometheus Snapshot failed")
+		return
+	}
+	// Copy prometheus snapshot to file
+	var tempSnapshotDir = "~/tmp/prometheus_snapshot"
+	common.RunRemoteCommand(node, "mkdir -p " + tempSnapshotDir)
+	common.RunRemoteCommand(node, "kubectl cp -n monitoring " + "prometheus-prometheus-kube-prometheus-prometheus-0:/prometheus/snapshots/ " + 
+		"-c prometheus " + tempSnapshotDir)
+	common.CopyRemoteFile(node, tempSnapshotDir, path.Dir(outputDir))
+	// remove temp directory
+	common.RunRemoteCommand(node, "rm -rf " + tempSnapshotDir)
 }
