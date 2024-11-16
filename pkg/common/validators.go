@@ -77,7 +77,7 @@ func CheckMultiLoaderConfig(multiLoaderConfig MutliLoaderConfiguration) {
 func CheckMultiLoaderPlatformSpecificConfig(multiLoaderConfig MutliLoaderConfiguration, nodeGroup NodeGroup, platform string) {
 	log.Info("Checking platform specific multi-loader configuration")
 	// For knative platform, there is an additional check for nodes
-	if platform == "Knative" {
+	if platform == "Knative" || platform == "Knative-RPS" {
 		// Check if metrics are valid
 		for _, metric := range multiLoaderConfig.Metrics {
 			CheckCollectableMetrics(metric)
