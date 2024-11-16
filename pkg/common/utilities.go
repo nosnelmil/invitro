@@ -26,7 +26,6 @@ package common
 
 import (
 	"encoding/json"
-	"fmt"
 	"hash/fnv"
 	"log"
 	"math/rand"
@@ -149,59 +148,6 @@ func DeepCopy[T any](a T) (T, error) {
 	}
 	err = json.Unmarshal(byt, &b)
 	return b, err
-}
-
-func DetermineWorkerNodes() []string {
-	cmd := exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=worker | awk '{print $6}'")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Fatal(err)
-	}
-	workerNodes := strings.Split(strings.Trim(string(out), " \n"), "\n")
-	for i := range workerNodes {
-		workerNodes[i] = strings.TrimSpace(workerNodes[i])
-	}
-	return workerNodes
-}
-
-func DetermineMasterNode() string {
-	cmd := exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=master | awk '{print $6}'")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return strings.Trim(string(out), " \n")
-}
-
-func DetermineLoaderNode() string {
-	cmd := exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | grep nodetype=monitoring | awk '{print $6}'")
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			log.Fatal(err)
-		}
-	return strings.Trim(string(out), " \n")
-}
-
-func DetermineOtherNodes(podNamePrefix string) string {
-	// Get the pod alias
-	cmdPodName := exec.Command("sh", "-c", fmt.Sprintf("kubectl get pods -n knative-serving --no-headers | grep %s- | awk '{print $1}'", podNamePrefix))
-	out, err := cmdPodName.CombinedOutput()
-
-	if err != nil {
-		log.Fatal("Error getting", podNamePrefix, "pod name:", err)
-	}
-
-	// Get the private ip using the pod alias
-	podName := strings.Trim(string(out), "\n")
-	cmdNodeIP := exec.Command("sh", "-c", fmt.Sprintf("kubectl get pod %s -n knative-serving -o=jsonpath='{.status.hostIP}'", podName))
-	out, err = cmdNodeIP.CombinedOutput()
-
-	if err != nil {
-		log.Fatal("Error getting", cmdNodeIP, "node IP:", err)
-	}
-
-	nodeIp := strings.Split(string(out), "\n")[0]
-	return strings.Trim(nodeIp, " ")
 }
 
 func RunScript(command string) {
