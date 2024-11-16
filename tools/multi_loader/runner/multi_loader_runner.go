@@ -6,7 +6,7 @@ import (
 )
 
 type MultiLoaderRunner struct {
-    MultiLoaderConfig config.MutliLoaderConfiguration
+    MultiLoaderConfig common.MutliLoaderConfiguration
     NodeGroup common.NodeGroup
     DryRunSuccess bool
 	Verbosity	string
