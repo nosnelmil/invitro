@@ -20,6 +20,9 @@ type MultiLoaderRunner struct {
 func NewMultiLoaderRunner(configPath string, verbosity string, iatGeneration bool, generated bool) (*MultiLoaderRunner, error) {
     multiLoaderConfig := config.ReadMultiLoaderConfigurationFile(configPath)
 
+	// validate configuration
+	common.CheckMultiLoaderConfig(multiLoaderConfig)
+
     return &MultiLoaderRunner{
         MultiLoaderConfig: multiLoaderConfig,
         DryRunSuccess: true,
