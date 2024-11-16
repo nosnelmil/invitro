@@ -146,3 +146,18 @@ func ReadFailureConfiguration(path string) *FailureConfiguration {
 
 	return &config
 }
+
+func ReadMultiLoaderConfigurationFile(path string) MutliLoaderConfiguration {
+	byteValue, err := os.ReadFile(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var config MutliLoaderConfiguration
+	err = json.Unmarshal(byteValue, &config)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return config
+}
