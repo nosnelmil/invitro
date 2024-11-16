@@ -126,6 +126,9 @@ func (d *MultiLoaderRunner) run(){
 
 			err := d.runExperiment(experiment)
 
+			// Perform cleanup
+			d.performCleanup()
+
 			// Check if should continue this study
 			if err != nil {
 				log.Info("Experiment failed: ", experiment.Name, ". Skipping remaining experiments in study...")
@@ -390,4 +393,15 @@ func (d *MultiLoaderRunner) logLoaderStdError(stdPipe io.ReadCloser, logFile *os
 		}
 		log.Error(m)
 	}
+}
+
+func (d *MultiLoaderRunner) performCleanup() {
+	log.Info("Runnning Cleanup")
+	// Run make clean
+	if err := exec.Command("make", "clean").Run(); err != nil {
+		log.Error(err)
+	}
+	log.Info("Cleanup completed")
+	// Remove temp file
+	os.Remove(EXPERIMENT_TEMP_CONFIG_PATH)
 }
