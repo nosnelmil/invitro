@@ -11,7 +11,7 @@ import (
 )
 
 type MultiLoaderRunner struct {
-    MultiLoaderConfig common.MutliLoaderConfiguration
+    MultiLoaderConfig common.MultiLoaderConfiguration
     NodeGroup common.NodeGroup
     DryRunSuccess bool
 	Verbosity	string
@@ -52,7 +52,7 @@ func NewMultiLoaderRunner(configPath string, verbosity string, iatGeneration boo
 	return &runner, nil
 }
 
-func determinePlatform(multiLoaderConfig common.MutliLoaderConfiguration) string {
+func determinePlatform(multiLoaderConfig common.MultiLoaderConfiguration) string {
 	// Determine platform
 	baseConfigByteValue, err := os.ReadFile(multiLoaderConfig.BaseConfigPath)
 	if err != nil {
@@ -66,7 +66,7 @@ func determinePlatform(multiLoaderConfig common.MutliLoaderConfiguration) string
 	return loaderConfig.Platform
 }
 
-func determineNodes(multiLoaderConfig common.MutliLoaderConfiguration) common.NodeGroup {
+func determineNodes(multiLoaderConfig common.MultiLoaderConfiguration) common.NodeGroup {
 	var nodeGroup common.NodeGroup
 	nodeGroup.MasterNode = multiLoaderConfig.MasterNode
 	nodeGroup.AutoScalerNode = multiLoaderConfig.AutoScalerNode
@@ -95,13 +95,13 @@ func determineNodes(multiLoaderConfig common.MutliLoaderConfiguration) common.No
 func (d *MultiLoaderRunner) run(){
 	// Run global prescript
 	common.RunScript(d.MultiLoaderConfig.PreScript)
-	// Iterate over experiments and run them
-	for _, experiment := range d.MultiLoaderConfig.Experiments {
-		log.Info("Setting up experiment: ", experiment.Name)
+	// Iterate over studies and run them
+	for _, study := range d.MultiLoaderConfig.Studies {
+		log.Info("Setting up experiment: ", study.Name)
 		// Run pre script
-		common.RunScript(experiment.PreScript)	
+		common.RunScript(study.PreScript)	
 		// Run post script
-		common.RunScript(experiment.PostScript)
+		common.RunScript(study.PostScript)
 	}
 	// Run global postscript
 	common.RunScript(d.MultiLoaderConfig.PostScript)

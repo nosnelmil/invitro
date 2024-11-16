@@ -1,20 +1,14 @@
 package common
 
-type MutliLoaderConfiguration struct {
-	Experiments 	[]LoaderExperiment 	`json:"Experiments"`
-	BaseConfigPath  string             	`json:"BaseConfigPath"`
+type MultiLoaderConfiguration struct {
+	Studies 		[]LoaderStudy 			`json:"Studies"`
+	BaseConfigPath  string             		`json:"BaseConfigPath"`
 	// Optional
-	PreScript 		string 				`json:"PreScript"`
-	PostScript	 	string 				`json:"PostScript"`
-	MasterNode 		string 				`json:"MasterNode"`
-	AutoScalerNode 	string 				`json:"AutoScalerNode"`
-	ActivatorNode 	string 				`json:"ActivatorNode"`
-	LoaderNode 		string 				`json:"LoaderNode"`
-	WorkerNodes 	[]string 			`json:"WorkerNodes"`
-	Metrics         []string			`json:"Metrics"`
+	PreScript 		string 					`json:"PreScript"`
+	PostScript	 	string 					`json:"PostScript"`
 }
 
-type LoaderExperiment struct {
+type LoaderStudy struct {
 	Name    		string           		`json:"Name"`
 	Config  		map[string]interface{}	`json:"Config"`
 	// A combination of format and values or just dir should be specified
