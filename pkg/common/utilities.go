@@ -32,6 +32,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	logger "github.com/sirupsen/logrus"
 )
 
 type Pair struct {
@@ -189,4 +191,16 @@ func DetermineOtherNodes(podNamePrefix string) string {
 
 	nodeIp := strings.Split(string(out), "\n")[0]
 	return strings.Trim(nodeIp, " ")
+}
+
+func RunScript(command string) {
+	if command == "" {
+		return
+	}
+	logger.Info("Running command ", command)
+	cmd, err := exec.Command("/bin/sh", command).Output()
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger.Info(string(cmd))
 }
