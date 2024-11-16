@@ -91,3 +91,18 @@ func determineNodes(multiLoaderConfig common.MutliLoaderConfiguration) common.No
 	}
 	return nodeGroup
 }
+
+func (d *MultiLoaderRunner) run(){
+	// Run global prescript
+	common.RunScript(d.MultiLoaderConfig.PreScript)
+	// Iterate over experiments and run them
+	for _, experiment := range d.MultiLoaderConfig.Experiments {
+		log.Info("Setting up experiment: ", experiment.Name)
+		// Run pre script
+		common.RunScript(experiment.PreScript)	
+		// Run post script
+		common.RunScript(experiment.PostScript)
+	}
+	// Run global postscript
+	common.RunScript(d.MultiLoaderConfig.PostScript)
+}
