@@ -107,6 +107,18 @@ func determineNodes(multiLoaderConfig common.MultiLoaderConfiguration) common.No
 	return nodeGroup
 }
 
+func (d *MultiLoaderRunner) RunDryRun() {
+    log.Info("Running dry run")
+    d.DryRun = true
+    d.run()
+}
+
+func (d *MultiLoaderRunner) RunActual() {
+    log.Info("Running actual experiments")
+    d.DryRun = false
+    d.run()
+}
+
 func (d *MultiLoaderRunner) run(){
 	// Run global prescript
 	common.RunScript(d.MultiLoaderConfig.PreScript)
