@@ -112,3 +112,11 @@ const (
 )
 
 var ValidCollectableMetrics = []string{Activator, AutoScaler, TOP, Prometheus}
+
+// CPULimits
+const (
+	CPULimit1vCPU string = "1vCPU"
+	CPULimitGCP   string = "GCP"
+)
+
+var ValidCPULimits = []string{CPULimit1vCPU, CPULimitGCP}
