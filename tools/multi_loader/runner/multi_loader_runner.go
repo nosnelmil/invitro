@@ -465,6 +465,12 @@ func (d *MultiLoaderRunner) collateMetrics(experimentConfig common.LoaderStudy) 
 		activatorLogDir := path.Join(experimentDir, "activator")
 		metric.RetrieveActivatorLogs(d.NodeGroup.ActivatorNode, activatorLogDir)
 	}
+
+	if(d.shouldCollectMetric(common.Prometheus)) {
+		// Retrieve prometheus snapshot
+		prometheusSnapshotDir := path.Join(experimentDir, "prometheus_snapshot")
+		metric.RetrievePrometheusSnapshot(d.NodeGroup.MasterNode, prometheusSnapshotDir)
+	}
 }
 
 func (d *MultiLoaderRunner) topProcessMetrics(experimentPath string, reset bool) {
