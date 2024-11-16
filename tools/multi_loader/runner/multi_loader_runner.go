@@ -121,6 +121,9 @@ func (d *MultiLoaderRunner) run(){
 
 		// Iterate over sparse experiments, prepare and run
 		for _, experiment := range sparseExperiments {
+			if d.DryRun{
+				log.Info("Dry Running: ", experiment.Name)
+			}
 			// Prepare experiment: merge with base config, create output dir and write merged config to temp file
 			d.prepareExperiment(experiment)
 
@@ -137,6 +140,9 @@ func (d *MultiLoaderRunner) run(){
 		}
 		// Run post script
 		common.RunScript(study.PostScript)
+		if len(sparseExperiments) > 1 && !d.DryRun{
+			log.Info("All experiments for ", study.Name, " completed")
+		}
 	}
 	// Run global postscript
 	common.RunScript(d.MultiLoaderConfig.PostScript)
