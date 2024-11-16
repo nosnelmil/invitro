@@ -227,3 +227,19 @@ func RunScript(command string) {
 	}
 	logger.Info(string(cmd))
 }
+
+func ParseLogType(logString string) string {
+	logTypeArr := strings.Split(logString, "level=")
+	if len(logTypeArr) > 1 {
+		return strings.Split(logTypeArr[1], " ")[0]
+	}
+	return "info"
+}
+
+func ParseLogMessage(logString string) string {
+	message := strings.Split(logString, "msg=")
+	if len(message) > 1 {
+		return message[1][1 : len(message[1])-1]
+	}
+	return logString
+}

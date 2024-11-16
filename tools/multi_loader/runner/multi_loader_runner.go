@@ -1,10 +1,14 @@
 package runner
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +19,7 @@ import (
 )
 
 const (
+	LOADER_PATH = "cmd/loader.go"
 	TIME_FORMAT = "Jan_02_1504"
 	EXPERIMENT_TEMP_CONFIG_PATH = "tools/multi_loader/current_running_config.json"
 	NUM_OF_RETRIES = 2
@@ -118,8 +123,15 @@ func (d *MultiLoaderRunner) run(){
 		for _, experiment := range sparseExperiments {
 			// Prepare experiment: merge with base config, create output dir and write merged config to temp file
 			d.prepareExperiment(experiment)
-		}
 
+			err := d.runExperiment(experiment)
+
+			// Check if should continue this study
+			if err != nil {
+				log.Info("Experiment failed: ", experiment.Name, ". Skipping remaining experiments in study...")
+				break
+			}
+		}
 		// Run post script
 		common.RunScript(study.PostScript)
 	}
@@ -277,5 +289,105 @@ func (d *MultiLoaderRunner) writeExperimentConfigToTempFile(experimentConfig con
 	err := os.WriteFile(fileWritePath, experimentConfigBytes, 0644)
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+func (d *MultiLoaderRunner) runExperiment(experiment common.LoaderStudy) error {
+	log.Info("Running ", experiment.Name)
+	log.Debug("Experiment configuration ", experiment.Config)
+
+	// Create the log file
+	logFilePath := path.Join(path.Dir(experiment.Config["OutputPathPrefix"].(string)), "loader.log")
+	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer logFile.Close()
+
+	for i := 0; i < NUM_OF_RETRIES; i++ {
+		// Run loader.go with experiment configs
+		if err := d.executeLoaderCommand(experiment, logFile); err != nil {
+			log.Error(err)
+			log.Error("Experiment failed: ", experiment.Name)
+			logFile.WriteString("Experiment failed: " + experiment.Name + ". Error: " + err.Error() + "\n")
+			if i == 0 && !d.DryRun {
+				log.Info("Retrying experiment ", experiment.Name)
+				logFile.WriteString("==================================RETRYING==================================\n")
+				experiment.Verbosity = "debug"
+			} else{
+				// Experiment failed set dry run flag to false
+				d.DryRunSuccess = false
+				log.Error("Check log file for more information: ", logFilePath)
+				// should not continue with experiment
+				return err
+			}
+			continue
+		}else{
+			break
+		}
+	}
+	log.Info("Completed ", experiment.Name)
+	return nil
+}
+
+func (d *MultiLoaderRunner) executeLoaderCommand(experiment common.LoaderStudy, logFile *os.File) error {
+	cmd := exec.Command("go", "run", LOADER_PATH,
+		"--config="+EXPERIMENT_TEMP_CONFIG_PATH,
+		"--verbosity="+experiment.Verbosity,
+		"--iatGeneration="+strconv.FormatBool(experiment.IatGeneration),
+		"--generated="+strconv.FormatBool(experiment.Generated),
+		"--dryRun="+strconv.FormatBool(d.DryRun))
+
+	stdout, _ := cmd.StdoutPipe()
+	stderr, _ := cmd.StderrPipe()
+	
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	
+	go d.logLoaderStdOutput(stdout, logFile)
+	go d.logLoaderStdError(stderr, logFile)
+	
+	return cmd.Wait()
+}
+
+func (d *MultiLoaderRunner) logLoaderStdOutput(stdPipe io.ReadCloser, logFile *os.File) {
+	scanner := bufio.NewScanner(stdPipe)
+	for scanner.Scan() {
+		m := scanner.Text()
+		// write to log file
+		logFile.WriteString(m + "\n")
+		
+		// Log key information
+		if m == "" {
+			continue
+		}
+		logType := common.ParseLogType(m)
+		message := common.ParseLogMessage(m)
+		
+		switch logType {
+		case "debug":
+			log.Debug(message)
+		case "trace":
+			log.Trace(message)
+		default:
+			if strings.Contains(message, "Number of successful invocations:") || strings.Contains(message, "Number of failed invocations:") {
+				log.Info(strings.ReplaceAll(strings.ReplaceAll(message, "\\t", " ",), "\\n", ""))
+			}
+		}
+	}
+}
+
+func (d *MultiLoaderRunner) logLoaderStdError(stdPipe io.ReadCloser, logFile *os.File) {
+	scanner := bufio.NewScanner(stdPipe)
+	for scanner.Scan() {
+		m := scanner.Text()
+		// write to log file
+		logFile.WriteString(m + "\n")
+		
+		if m == "" {
+			continue
+		}
+		log.Error(m)
 	}
 }
