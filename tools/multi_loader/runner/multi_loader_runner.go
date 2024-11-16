@@ -14,6 +14,7 @@ import (
 
 	"github.com/vhive-serverless/loader/pkg/common"
 	"github.com/vhive-serverless/loader/pkg/config"
+	"github.com/vhive-serverless/loader/pkg/metric"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -139,6 +140,11 @@ func (d *MultiLoaderRunner) run(){
 			d.prepareExperiment(experiment)
 
 			err := d.runExperiment(experiment)
+
+			// Collate metrics
+			if !d.DryRun {
+				d.collateMetrics(experiment)
+			}
 
 			// Perform cleanup
 			d.performCleanup()
@@ -275,6 +281,11 @@ func (d *MultiLoaderRunner) prepareExperiment(experiment common.LoaderStudy) {
 	}
 	// Write experiment configs to temp file
 	d.writeExperimentConfigToTempFile(experimentConfig, EXPERIMENT_TEMP_CONFIG_PATH)
+
+	if d.shouldCollectMetric(common.TOP) {
+		// Reset TOP
+		d.topProcessMetrics(outputDir, true)
+	}
 }
 
 /**
@@ -423,4 +434,50 @@ func (d *MultiLoaderRunner) performCleanup() {
 	log.Info("Cleanup completed")
 	// Remove temp file
 	os.Remove(EXPERIMENT_TEMP_CONFIG_PATH)
+}
+
+func (d *MultiLoaderRunner) collateMetrics(experimentConfig common.LoaderStudy) {
+	// Check if should collect metrics
+	if len(d.MultiLoaderConfig.Metrics) == 0 {
+		return
+	}
+	// collate Metrics
+	log.Info("Collating Metrics")
+	experimentDir := path.Dir(experimentConfig.Config["OutputPathPrefix"].(string))
+	
+	if(d.shouldCollectMetric(common.TOP)) {
+		// Collect top Metrics
+		topDir := path.Join(experimentDir, "top")
+		if err := os.MkdirAll(topDir, 0755); err != nil {
+			log.Fatal(err)
+		}
+		d.topProcessMetrics(topDir, false)
+	}
+}
+
+func (d *MultiLoaderRunner) topProcessMetrics(experimentPath string, reset bool) {
+	nodes := []string{d.NodeGroup.MasterNode, d.NodeGroup.LoaderNode}
+	if d.NodeGroup.AutoScalerNode != d.NodeGroup.MasterNode {
+		nodes = append(nodes, d.NodeGroup.AutoScalerNode)
+	}
+	if d.NodeGroup.ActivatorNode != d.NodeGroup.MasterNode {
+		nodes = append(nodes, d.NodeGroup.ActivatorNode)
+	}
+	nodes = append(nodes, d.NodeGroup.WorkerNodes...)
+
+	metric.TOPProcessMetrics(nodes, experimentPath, reset)
+}
+
+// Helper functions
+func (d *MultiLoaderRunner) shouldCollectMetric(targetMetrics string) bool {
+	// Only collect for Knative
+	if (d.Platform != "Knative" && d.Platform != "Knative-RPS") {
+		return false
+	}
+	for _, metric := range d.MultiLoaderConfig.Metrics {
+		if metric == targetMetrics {
+			return true
+		}
+	}
+	return false
 }

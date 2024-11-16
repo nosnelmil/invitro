@@ -27,8 +27,12 @@ package metric
 import (
 	"encoding/json"
 	"os/exec"
+	"path"
+	"strings"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/vhive-serverless/loader/pkg/common"
 )
 
 func ScrapeDeploymentScales() []DeploymentScale {
@@ -80,4 +84,24 @@ func ScrapeClusterUsage() ClusterUsage {
 	}
 
 	return result
+}
+
+func TOPProcessMetrics(nodes []string, outputDir string, reset bool) {
+	var wg sync.WaitGroup
+	for _, node := range nodes {
+		wg.Add(1)
+		go func(node string) {
+			defer wg.Done()
+			// kill all instances of top
+			common.RunRemoteCommand(node, "if pgrep top >/dev/null; then killall top; fi")
+			if reset {
+				// run top in the background
+				common.RunRemoteCommand(node, "top -b -d 15 -c -w 512 > top.txt 2>&1 &")
+			} else {
+				common.CopyRemoteFile(node, "top.txt", path.Join(outputDir, "top_" + node + ".txt"))
+			}
+		}(strings.TrimSpace(node))
+	}
+
+	wg.Wait() 
 }

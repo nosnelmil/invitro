@@ -231,3 +231,22 @@ func DetermineOtherNodes(podNamePrefix string) string {
 	nodeIp := strings.Split(string(out), "\n")[0]
 	return strings.Trim(nodeIp, " ")
 }
+
+func RunRemoteCommand(node string, command string){
+	cmd := exec.Command("ssh", "-oStrictHostKeyChecking=no", "-p 22", node, command)
+	
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.Fatal(err)
+	}
+	logger.Debug(node, string(output))
+}
+
+func CopyRemoteFile(remoteNode, src string, dest string){
+	cmd := exec.Command("scp", "-rp", remoteNode + ":" + src, dest)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.Fatal(err)
+	}
+	logger.Debug(string(out))
+}
