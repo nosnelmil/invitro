@@ -16,6 +16,8 @@ import (
 
 const (
 	TIME_FORMAT = "Jan_02_1504"
+	EXPERIMENT_TEMP_CONFIG_PATH = "tools/multi_loader/current_running_config.json"
+	NUM_OF_RETRIES = 2
 )
 
 type MultiLoaderRunner struct {
@@ -109,8 +111,14 @@ func (d *MultiLoaderRunner) run(){
 		// Run pre script
 		common.RunScript(study.PreScript)	
 
-		// Unpack study to sparse experiments
+		// Unpack study to a list of studies with different loader configs
 		sparseExperiments := d.unpackStudy(study)
+
+		// Iterate over sparse experiments, prepare and run
+		for _, experiment := range sparseExperiments {
+			// Prepare experiment: merge with base config, create output dir and write merged config to temp file
+			d.prepareExperiment(experiment)
+		}
 
 		// Run post script
 		common.RunScript(study.PostScript)
@@ -128,10 +136,10 @@ func (d *MultiLoaderRunner) unpackStudy(experiment common.LoaderStudy) []common.
 	log.Info("Unpacking experiment ", experiment.Name)
 	var experiments []common.LoaderStudy
 
-	// If user specified a trace directory
+	// if user specified a trace directory
 	if experiment.TracesDir != "" {
 		experiments = d.unpackFromTraceDir(experiment)
-	// User Define trace format and values instead of directory
+	// user define trace format and values instead of directory
 	} else if experiment.TracesFormat != "" && len(experiment.TraceValues) > 0 {
 		experiments = d.unpackFromTraceValues(experiment)
 	} else {
@@ -215,5 +223,59 @@ func (d *MultiLoaderRunner) addCommandFlags(study common.LoaderStudy) {
 	if !study.Generated {
 		study.Generated = d.Generated
 	} 
+}
+
+/**
+* Prepare experiment by merging with base config, creating output directory and writing experiment config to temp file
+*/
+func (d *MultiLoaderRunner) prepareExperiment(experiment common.LoaderStudy) {
+	log.Info("Preparing ", experiment.Name)
+	// Merge base configs with experiment configs
+	experimentConfig := d.mergeConfigurations(d.MultiLoaderConfig.BaseConfigPath, experiment)
+    
+	// Create output directory
+	outputDir := path.Dir(experimentConfig.OutputPathPrefix)
+
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		log.Fatal(err)
+	}
+	// Write experiment configs to temp file
+	d.writeExperimentConfigToTempFile(experimentConfig, EXPERIMENT_TEMP_CONFIG_PATH)
+}
+
+/**
+* Merge base configs with partial loader configs
+*/
+func (d *MultiLoaderRunner) mergeConfigurations(baseConfigPath string, experiment common.LoaderStudy) config.LoaderConfiguration {
+	// Read base configuration
+	baseConfigByteValue, err := os.ReadFile(baseConfigPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Debug("Experiment configuration ", experiment.Config)
 	
+	var mergedConfig config.LoaderConfiguration
+	// Unmarshal base configuration
+	if err = json.Unmarshal(baseConfigByteValue, &mergedConfig); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Debug("Base configuration ", mergedConfig)
+	
+	// merge experiment config onto base config
+	experimentConfigBytes, _ := json.Marshal(experiment.Config)
+	if err = json.Unmarshal(experimentConfigBytes, &mergedConfig); err != nil {
+		log.Fatal(err)
+	}
+	log.Debug("Merged configuration ", mergedConfig)
+
+	return mergedConfig
+}
+
+func (d *MultiLoaderRunner) writeExperimentConfigToTempFile(experimentConfig config.LoaderConfiguration, fileWritePath string) {
+	experimentConfigBytes, _ := json.Marshal(experimentConfig)
+	err := os.WriteFile(fileWritePath, experimentConfigBytes, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
