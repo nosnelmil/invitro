@@ -1,8 +1,13 @@
 package runner
 
 import (
+	"encoding/json"
+	"os"
+
 	"github.com/vhive-serverless/loader/pkg/common"
 	"github.com/vhive-serverless/loader/pkg/config"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type MultiLoaderRunner struct {
@@ -22,13 +27,67 @@ func NewMultiLoaderRunner(configPath string, verbosity string, iatGeneration boo
 
 	// validate configuration
 	common.CheckMultiLoaderConfig(multiLoaderConfig)
+	
+	// determine platform
+	platform := determinePlatform(multiLoaderConfig)
 
-    return &MultiLoaderRunner{
+    runner := MultiLoaderRunner{
         MultiLoaderConfig: multiLoaderConfig,
         DryRunSuccess: true,
 		Verbosity: verbosity,
 		IatGeneration: iatGeneration,
 		Generated: generated,
 		DryRun: false,
-    }, nil
+		Platform: platform,
+    }
+	
+	// For knative platform, help to determine and validate nodes in cluster
+	if platform == "Knative" || platform == "Knative-RPS" {
+		nodeGroup := determineNodes(multiLoaderConfig)
+		// add to runner
+		runner.NodeGroup = nodeGroup
+		common.CheckMultiLoaderPlatformSpecificConfig(multiLoaderConfig, nodeGroup, platform)
+	}
+
+	return &runner, nil
+}
+
+func determinePlatform(multiLoaderConfig common.MutliLoaderConfiguration) string {
+	// Determine platform
+	baseConfigByteValue, err := os.ReadFile(multiLoaderConfig.BaseConfigPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	var loaderConfig config.LoaderConfiguration
+	// Unmarshal base configuration
+	if err = json.Unmarshal(baseConfigByteValue, &loaderConfig); err != nil {
+		log.Fatal(err)
+	}
+	return loaderConfig.Platform
+}
+
+func determineNodes(multiLoaderConfig common.MutliLoaderConfiguration) common.NodeGroup {
+	var nodeGroup common.NodeGroup
+	nodeGroup.MasterNode = multiLoaderConfig.MasterNode
+	nodeGroup.AutoScalerNode = multiLoaderConfig.AutoScalerNode
+	nodeGroup.ActivatorNode = multiLoaderConfig.ActivatorNode
+	nodeGroup.LoaderNode = multiLoaderConfig.LoaderNode
+	nodeGroup.WorkerNodes = multiLoaderConfig.WorkerNodes
+
+	if len(nodeGroup.WorkerNodes) == 0 {
+		nodeGroup.WorkerNodes = common.DetermineWorkerNodes()
+	}
+	if nodeGroup.MasterNode == "" {
+		nodeGroup.MasterNode = common.DetermineMasterNode()
+	}
+	if nodeGroup.LoaderNode  == "" {
+		nodeGroup.LoaderNode = common.DetermineLoaderNode()
+	}
+	if nodeGroup.AutoScalerNode == "" {
+		nodeGroup.AutoScalerNode = common.DetermineOtherNodes("autoscaler")
+	}
+	if nodeGroup.ActivatorNode == "" {
+		nodeGroup.ActivatorNode = common.DetermineOtherNodes("activator")
+	}
+	return nodeGroup
 }
