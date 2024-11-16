@@ -25,6 +25,7 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"log"
@@ -150,6 +151,16 @@ func GetName(function *Function) int {
 		log.Fatal(err)
 	}
 	return functionId
+}
+
+func DeepCopy[T any](a T) (T, error) {
+	var b T
+	byt, err := json.Marshal(a)
+	if err != nil {
+		return b, err
+	}
+	err = json.Unmarshal(byt, &b)
+	return b, err
 }
 
 func DetermineWorkerNodes() []string {
