@@ -51,6 +51,7 @@ var (
 	verbosity     = flag.String("verbosity", "info", "Logging verbosity - choose from [info, debug, trace]")
 	iatGeneration = flag.Bool("iatGeneration", false, "Generate iats only or run invocations as well")
 	iatFromFile   = flag.Bool("generated", false, "True if iats were already generated")
+	dryRun		  = flag.Bool("dryRun", false, "Dry run mode - do not deploy functions or generate invocations")
 )
 
 func init() {
@@ -199,6 +200,10 @@ func runTraceMode(cfg *config.LoaderConfiguration, readIATFromFile bool, justGen
 
 		Functions: functions,
 	})
+
+	if *dryRun {
+		return
+	}
 
 	log.Infof("Using %s as a service YAML specification file.\n", experimentDriver.Configuration.YAMLPath)
 
