@@ -41,34 +41,34 @@ func IsValidIP(ip string) bool {
 }
 
 // Check general multi-loader configuration that applies to all platforms
-func CheckMultiLoaderConfig(multiLoaderConfig MutliLoaderConfiguration) {
+func CheckMultiLoaderConfig(multiLoaderConfig MultiLoaderConfiguration) {
 	log.Info("Checking multi-loader configuration")
 	// Check if all paths are valid
 	CheckPath(multiLoaderConfig.BaseConfigPath)
-	// Check each experiments
-	if len(multiLoaderConfig.Experiments) == 0 {
-		log.Fatal("No experiments found in configuration file")
+	// Check each study
+	if len(multiLoaderConfig.Studies) == 0 {
+		log.Fatal("No study found in configuration file")
 	}
-	for _, experiment := range multiLoaderConfig.Experiments {
+	for _, study := range multiLoaderConfig.Studies {
 		// Check trace directory
 		// if configs does not have TracePath or OutputPathPreix, either TracesDir or (TracesFormat and TraceValues) should be defined along with OutputDir
-		if experiment.TracesDir == "" && (experiment.TracesFormat == "" || len(experiment.TraceValues) == 0) {
-			if _, ok := experiment.Config["TracePath"]; !ok {
-				log.Fatal("Missing one of TracesDir, TracesFormat & TraceValues, Config.TracePath in multi_loader_config ", experiment.Name)
+		if study.TracesDir == "" && (study.TracesFormat == "" || len(study.TraceValues) == 0) {
+			if _, ok := study.Config["TracePath"]; !ok {
+				log.Fatal("Missing one of TracesDir, TracesFormat & TraceValues, Config.TracePath in multi_loader_config ", study.Name)
 			}
 		}
-		if experiment.TracesFormat != "" {
+		if study.TracesFormat != "" {
 			// check if trace format contains TRACE_FORMAT_STRING
-			if !strings.Contains(experiment.TracesFormat, TraceFormatString) {
-				log.Fatal("Invalid TracesFormat in multi_loader_config ", experiment.Name, ". Missing ", TraceFormatString, " in format")
+			if !strings.Contains(study.TracesFormat, TraceFormatString) {
+				log.Fatal("Invalid TracesFormat in multi_loader_config ", study.Name, ". Missing ", TraceFormatString, " in format")
 			}
 		}
-		if experiment.OutputDir == "" {
-			if _, ok := experiment.Config["OutputPathPrefix"]; !ok {
-				log.Warn("Missing one of OutputDir or Config.OutputPathPrefix in multi_loader_config ", experiment.Name)
+		if study.OutputDir == "" {
+			if _, ok := study.Config["OutputPathPrefix"]; !ok {
+				log.Warn("Missing one of OutputDir or Config.OutputPathPrefix in multi_loader_config ", study.Name)
 				// set default output directory
-				experiment.OutputDir = path.Join("data", "out", experiment.Name)
-				log.Warn("Setting default output directory to ", experiment.OutputDir)
+				study.OutputDir = path.Join("data", "out", study.Name)
+				log.Warn("Setting default output directory to ", study.OutputDir)
 			}
 		}
 	}
@@ -76,7 +76,7 @@ func CheckMultiLoaderConfig(multiLoaderConfig MutliLoaderConfiguration) {
 }
 
 // check platform specific multi-loader configuration
-func CheckMultiLoaderPlatformSpecificConfig(multiLoaderConfig MutliLoaderConfiguration, nodeGroup NodeGroup, platform string) {
+func CheckMultiLoaderPlatformSpecificConfig(multiLoaderConfig MultiLoaderConfiguration, nodeGroup NodeGroup, platform string) {
 	log.Info("Checking platform specific multi-loader configuration")
 	// For knative platform, there is an additional check for nodes
 	if platform == "Knative" || platform == "Knative-RPS" {

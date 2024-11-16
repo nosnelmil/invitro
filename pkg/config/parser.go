@@ -120,13 +120,13 @@ func ReadFailureConfiguration(path string) *FailureConfiguration {
 	return &config
 }
 
-func ReadMultiLoaderConfigurationFile(path string) common.MutliLoaderConfiguration {
+func ReadMultiLoaderConfigurationFile(path string) common.MultiLoaderConfiguration {
 	byteValue, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	var config common.MutliLoaderConfiguration
+	var config common.MultiLoaderConfiguration
 	err = json.Unmarshal(byteValue, &config)
 	if err != nil {
 		log.Fatal(err)
