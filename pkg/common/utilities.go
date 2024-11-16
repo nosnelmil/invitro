@@ -25,6 +25,7 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"log"
@@ -138,6 +139,16 @@ func SumNumberOfInvocations(withWarmup bool, totalDuration int, functions []*Fun
 	}
 
 	return result
+}
+
+func DeepCopy[T any](a T) (T, error) {
+	var b T
+	byt, err := json.Marshal(a)
+	if err != nil {
+		return b, err
+	}
+	err = json.Unmarshal(byt, &b)
+	return b, err
 }
 
 func DetermineWorkerNodes() []string {
