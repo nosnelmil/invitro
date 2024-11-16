@@ -73,6 +73,26 @@ func CheckMultiLoaderConfig(multiLoaderConfig MultiLoaderConfiguration) {
 	log.Info("All experiments configs are valid")
 }
 
+func CheckPlatformSpecificMultiLoaderConfig(multiLoaderConfig MultiLoaderConfiguration, nodeGroup NodeGroup, platform string) {
+	log.Info("Checking platform specific multi-loader configuration")
+	// Check knative specific configurations
+	if platform == "Knative" || platform == "Knative-RPS" {
+		// Check if metrics are valid
+		for _, metric := range multiLoaderConfig.Metrics {
+			CheckCollectableMetrics(metric)
+		}
+		// Check nodes
+		CheckNode(nodeGroup.MasterNode)
+		CheckNode(nodeGroup.AutoScalerNode)
+		CheckNode(nodeGroup.ActivatorNode)
+		CheckNode(nodeGroup.LoaderNode)
+		for _, node := range nodeGroup.WorkerNodes {
+			CheckNode(node)
+		}
+		log.Info("Nodes are reachable")
+	}
+}
+
 func CheckCollectableMetrics(metrics string) {
 	if !slices.Contains(ValidCollectableMetrics, metrics) {
 		log.Fatal("Invalid metrics ", metrics)

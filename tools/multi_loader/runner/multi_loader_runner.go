@@ -59,6 +59,8 @@ func NewMultiLoaderRunner(configPath string, verbosity string, iatGeneration boo
 	// Knative specific configurations
 	if platform == "Knative" || platform == "Knative-RPS" {
 		runner.NodeGroup = determineNodes(multiLoaderConfig)
+		// Check if all nodes are reachable
+		common.CheckPlatformSpecificMultiLoaderConfig(multiLoaderConfig, runner.NodeGroup, platform)
 	}
 	
 	return &runner, nil
