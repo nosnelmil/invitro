@@ -26,6 +26,7 @@ package metric
 
 import (
 	"encoding/json"
+	"os"
 	"os/exec"
 	"path"
 	"strings"
@@ -104,4 +105,13 @@ func TOPProcessMetrics(nodes []string, outputDir string, reset bool) {
 	}
 
 	wg.Wait() 
+}
+
+func RetrieveAutoScalerLogs(node string, outputDir string){
+	err := os.MkdirAll(outputDir, 0755)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Retrieve autoscaler logs
+	common.CopyRemoteFile(node, "/var/log/pods/knative-serving_autoscaler-*/autoscaler/*", outputDir)
 }

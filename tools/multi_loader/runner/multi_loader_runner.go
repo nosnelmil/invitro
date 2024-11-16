@@ -453,6 +453,13 @@ func (d *MultiLoaderRunner) collateMetrics(experimentConfig common.LoaderStudy) 
 		}
 		d.topProcessMetrics(topDir, false)
 	}
+	
+	if(d.shouldCollectMetric(common.AutoScaler)) {
+		// Retrieve auto scaler logs
+		autoScalerLogDir := path.Join(experimentDir, "autoscaler")
+		metric.RetrieveAutoScalerLogs(d.NodeGroup.AutoScalerNode, autoScalerLogDir)
+	}
+
 }
 
 func (d *MultiLoaderRunner) topProcessMetrics(experimentPath string, reset bool) {
