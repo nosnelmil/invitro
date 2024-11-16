@@ -98,10 +98,17 @@ const (
 	AwsTraceFuncRepositoryName = "invitro_trace_function_aws"
 )
 
-// CPULimits
+// Multi-loader Constants
 const (
-	CPULimit1vCPU string = "1vCPU"
-	CPULimitGCP   string = "GCP"
+	TraceFormatString = "{}"
 )
 
-var ValidCPULimits = []string{CPULimit1vCPU, CPULimitGCP}
+// Multi-loader possible collectable metrics
+const (
+	Activator  string = "activator"
+	AutoScaler string = "autoscaler"
+	TOP        string = "top"
+	Prometheus string = "prometheus"
+)
+
+var ValidCollectableMetrics = []string{Activator, AutoScaler, TOP, Prometheus}
