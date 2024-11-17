@@ -138,7 +138,7 @@ func RetrievePrometheusSnapshot(node string, outputDir string){
 		cmd := exec.Command("ssh", node, "curl -XPOST http://localhost:9090/api/v1/admin/tsdb/snapshot")
 		out, err := cmd.CombinedOutput()
 		if err != nil {
-			log.Info("Failed to call Prometheus Snapshot endpoint. Retrying...")
+			log.Warn("Failed to call Prometheus Snapshot endpoint. Retrying...")
 			i--
 			continue
 		}
