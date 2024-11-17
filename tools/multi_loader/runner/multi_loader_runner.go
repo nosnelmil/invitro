@@ -158,6 +158,8 @@ func (d *MultiLoaderRunner) unpackFromTraceDir(study common.LoaderStudy) []commo
 
 	for _, file := range files {
 		newExperiment := d.createNewStudy(study, file.Name())
+		newExperiment.Config["TracePath"] = path.Join(study.TracesDir, file.Name())
+		newExperiment.Name += "_" + file.Name()
 		experiments = append(experiments, newExperiment)
 	}
 	return experiments
