@@ -10,7 +10,7 @@
             "Verbosity": "info",
             "TracesDir": "",
             "TracesFormat": "data/traces/multi-exp-test/example_{}_test",
-            "TraceValues": [1],
+            "TraceValues": [1,"2",3.1],
             "OutputDir": "data/out/multi-test",
             "PreScript": "",
             "PostScript": ""
@@ -18,5 +18,8 @@
     ],
     "PreScript": "",
     "PostScript": "",
-    "BaseConfigPath": "tools/multi_loader/base_loader_config.json"
+    "BaseConfigPath": "tools/multi_loader/base_loader_config.json",
+    "Metrics": ["prometheus", "activator", "top", "autoscaler"]
 }
+
+

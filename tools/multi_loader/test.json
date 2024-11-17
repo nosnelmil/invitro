@@ -1,0 +1,53 @@
+[
+    {
+        "Name": "experiment1_example_1_test",
+        "Config": {
+            "ExperimentDuration": 1,
+            "TracePath": "data/traces/multi-exp-test/example_1_test",
+            "OutputPathPrefix": "data/out/multi-test/{time.now()}_example_1_test/example_1_test"
+        },
+        "IatGeneration": false,
+        "Generated": false,
+        "Verbosity": "info",
+        "TracesDir": "data/traces/multi-exp-test",
+        "TracesFormat": "data/traces/multi-exp-test/example_{}_test",
+        "TraceValues": [1, "2", 3.1],
+        "OutputDir": "data/out/multi-test",
+        "PreScript": "",
+        "PostScript": ""
+    },
+    {
+        "Name": "experiment1_example_2_test",
+        "Config": {
+            "ExperimentDuration": 1,
+            "TracePath": "data/traces/multi-exp-test/example_2_test",
+            "OutputPathPrefix": "data/out/multi-test/{time.now()}_example_2_test/example_2_test"
+        },
+        "IatGeneration": false,
+        "Generated": false,
+        "Verbosity": "info",
+        "TracesDir": "data/traces/multi-exp-test",
+        "TracesFormat": "data/traces/multi-exp-test/example_{}_test",
+        "TraceValues": [1, "2", 3.1],
+        "OutputDir": "data/out/multi-test",
+        "PreScript": "",
+        "PostScript": ""
+    },
+    {
+        "Name": "experiment1_example_3_test",
+        "Config": {
+            "ExperimentDuration": 1,
+            "TracePath": "data/traces/multi-exp-test/example_3_test",
+            "OutputPathPrefix": "data/out/multi-test/{time.now()}_example_3_test/example_3_test"
+        },
+        "IatGeneration": false,
+        "Generated": false,
+        "Verbosity": "info",
+        "TracesDir": "data/traces/multi-exp-test",
+        "TracesFormat": "data/traces/multi-exp-test/example_{}_test",
+        "TraceValues": [1, "2", 3.1],
+        "OutputDir": "data/out/multi-test",
+        "PreScript": "",
+        "PostScript": ""
+    }
+]
