@@ -446,6 +446,7 @@ func (d *MultiLoaderRunner) collateMetrics(experimentConfig common.LoaderStudy) 
 	experimentDir := path.Dir(experimentConfig.Config["OutputPathPrefix"].(string))
 	
 	if(d.shouldCollectMetric(common.TOP)) {
+		log.Info("Collecting TOP")
 		// Collect top Metrics
 		topDir := path.Join(experimentDir, "top")
 		if err := os.MkdirAll(topDir, 0755); err != nil {
@@ -455,18 +456,21 @@ func (d *MultiLoaderRunner) collateMetrics(experimentConfig common.LoaderStudy) 
 	}
 
 	if(d.shouldCollectMetric(common.AutoScaler)) {
+		log.Info("Collecting AutoScaler")
 		// Retrieve auto scaler logs
 		autoScalerLogDir := path.Join(experimentDir, "autoscaler")
 		metric.RetrieveAutoScalerLogs(d.NodeGroup.AutoScalerNode, autoScalerLogDir)
 	}
 
 	if(d.shouldCollectMetric(common.Activator)) {
+		log.Info("Collecting Activator")
 		// Retrieve activator logs
 		activatorLogDir := path.Join(experimentDir, "activator")
 		metric.RetrieveActivatorLogs(d.NodeGroup.ActivatorNode, activatorLogDir)
 	}
 
 	if(d.shouldCollectMetric(common.Prometheus)) {
+		log.Info("Collecting Prometheus")
 		// Retrieve prometheus snapshot
 		prometheusSnapshotDir := path.Join(experimentDir, "prometheus_snapshot")
 		metric.RetrievePrometheusSnapshot(d.NodeGroup.MasterNode, prometheusSnapshotDir)
