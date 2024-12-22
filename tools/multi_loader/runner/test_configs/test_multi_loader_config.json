@@ -9,7 +9,10 @@
             "Generated": false,
             "Verbosity": "info",
             "TracesFormat": "data/traces/{}",
-            "TraceValues": ["example", "example2"],
+            "TraceValues": [
+                "example",
+                "example2"
+            ],
             "OutputDir": "data/out/multi-test"
         }
     ],

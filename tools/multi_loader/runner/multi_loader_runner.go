@@ -19,43 +19,43 @@ import (
 )
 
 const (
-	LOADER_PATH = "cmd/loader.go"
-	TIME_FORMAT = "Jan_02_1504"
+	LOADER_PATH                 = "cmd/loader.go"
+	TIME_FORMAT                 = "Jan_02_1504"
 	EXPERIMENT_TEMP_CONFIG_PATH = "tools/multi_loader/current_running_config.json"
-	NUM_OF_RETRIES = 2
+	NUM_OF_RETRIES              = 2
 )
 
 type MultiLoaderRunner struct {
-    MultiLoaderConfig common.MultiLoaderConfiguration
-    NodeGroup common.NodeGroup
-    DryRunSuccess bool
-	Verbosity	string
-	IatGeneration	bool
-	Generated	bool
-	DryRun bool
-	Platform string
+	MultiLoaderConfig common.MultiLoaderConfiguration
+	NodeGroup         common.NodeGroup
+	DryRunSuccess     bool
+	Verbosity         string
+	IatGeneration     bool
+	Generated         bool
+	DryRun            bool
+	Platform          string
 }
 
 // init multi loader runner
 func NewMultiLoaderRunner(configPath string, verbosity string, iatGeneration bool, generated bool) (*MultiLoaderRunner, error) {
-    multiLoaderConfig := config.ReadMultiLoaderConfigurationFile(configPath)
+	multiLoaderConfig := config.ReadMultiLoaderConfigurationFile(configPath)
 
 	// validate configuration
 	common.CheckMultiLoaderConfig(multiLoaderConfig)
-	
+
 	// determine platform
 	platform := determinePlatform(multiLoaderConfig)
 
-    runner := MultiLoaderRunner{
-        MultiLoaderConfig: multiLoaderConfig,
-        DryRunSuccess: true,
-		Verbosity: verbosity,
-		IatGeneration: iatGeneration,
-		Generated: generated,
-		DryRun: false,
-		Platform: platform,
-    }
-	
+	runner := MultiLoaderRunner{
+		MultiLoaderConfig: multiLoaderConfig,
+		DryRunSuccess:     true,
+		Verbosity:         verbosity,
+		IatGeneration:     iatGeneration,
+		Generated:         generated,
+		DryRun:            false,
+		Platform:          platform,
+	}
+
 	return &runner, nil
 }
 
@@ -74,32 +74,32 @@ func determinePlatform(multiLoaderConfig common.MultiLoaderConfiguration) string
 }
 
 func (d *MultiLoaderRunner) RunDryRun() {
-    log.Info("Running dry run")
-    d.DryRun = true
-    d.run()
+	log.Info("Running dry run")
+	d.DryRun = true
+	d.run()
 }
 
 func (d *MultiLoaderRunner) RunActual() {
-    log.Info("Running actual experiments")
-    d.DryRun = false
-    d.run()
+	log.Info("Running actual experiments")
+	d.DryRun = false
+	d.run()
 }
 
-func (d *MultiLoaderRunner) run(){
+func (d *MultiLoaderRunner) run() {
 	// Run global prescript
 	common.RunScript(d.MultiLoaderConfig.PreScript)
 	// Iterate over studies and run them
 	for _, study := range d.MultiLoaderConfig.Studies {
 		log.Info("Setting up experiment: ", study.Name)
 		// Run pre script
-		common.RunScript(study.PreScript)	
+		common.RunScript(study.PreScript)
 
 		// Unpack study to a list of studies with different loader configs
 		sparseExperiments := d.unpackStudy(study)
 
 		// Iterate over sparse experiments, prepare and run
 		for _, experiment := range sparseExperiments {
-			if d.DryRun{
+			if d.DryRun {
 				log.Info("Dry Running: ", experiment.Name)
 			}
 			// Prepare experiment: merge with base config, create output dir and write merged config to temp file
@@ -118,7 +118,7 @@ func (d *MultiLoaderRunner) run(){
 		}
 		// Run post script
 		common.RunScript(study.PostScript)
-		if len(sparseExperiments) > 1 && !d.DryRun{
+		if len(sparseExperiments) > 1 && !d.DryRun {
 			log.Info("All experiments for ", study.Name, " completed")
 		}
 	}
@@ -126,11 +126,11 @@ func (d *MultiLoaderRunner) run(){
 	common.RunScript(d.MultiLoaderConfig.PostScript)
 }
 
-/** 
+/**
 * As a study can have multiple experiments, this function will unpack the study
-* but first by duplicating the study to multiple studies with different values 
+* but first by duplicating the study to multiple studies with different values
 * in the config field. Those values will override the base loader config later
-*/
+ */
 func (d *MultiLoaderRunner) unpackStudy(experiment common.LoaderStudy) []common.LoaderStudy {
 	log.Info("Unpacking experiment ", experiment.Name)
 	var experiments []common.LoaderStudy
@@ -138,7 +138,7 @@ func (d *MultiLoaderRunner) unpackStudy(experiment common.LoaderStudy) []common.
 	// if user specified a trace directory
 	if experiment.TracesDir != "" {
 		experiments = d.unpackFromTraceDir(experiment)
-	// user define trace format and values instead of directory
+		// user define trace format and values instead of directory
 	} else if experiment.TracesFormat != "" && len(experiment.TraceValues) > 0 {
 		experiments = d.unpackFromTraceValues(experiment)
 	} else {
@@ -223,17 +223,17 @@ func (d *MultiLoaderRunner) addCommandFlags(study common.LoaderStudy) {
 	}
 	if !study.Generated {
 		study.Generated = d.Generated
-	} 
+	}
 }
 
 /**
 * Prepare experiment by merging with base config, creating output directory and writing experiment config to temp file
-*/
+ */
 func (d *MultiLoaderRunner) prepareExperiment(experiment common.LoaderStudy) {
 	log.Info("Preparing ", experiment.Name)
 	// Merge base configs with experiment configs
 	experimentConfig := d.mergeConfigurations(d.MultiLoaderConfig.BaseConfigPath, experiment)
-    
+
 	// Create output directory
 	outputDir := path.Dir(experimentConfig.OutputPathPrefix)
 
@@ -246,7 +246,7 @@ func (d *MultiLoaderRunner) prepareExperiment(experiment common.LoaderStudy) {
 
 /**
 * Merge base configs with partial loader configs
-*/
+ */
 func (d *MultiLoaderRunner) mergeConfigurations(baseConfigPath string, experiment common.LoaderStudy) config.LoaderConfiguration {
 	// Read base configuration
 	baseConfigByteValue, err := os.ReadFile(baseConfigPath)
@@ -254,7 +254,7 @@ func (d *MultiLoaderRunner) mergeConfigurations(baseConfigPath string, experimen
 		log.Fatal(err)
 	}
 	log.Debug("Experiment configuration ", experiment.Config)
-	
+
 	var mergedConfig config.LoaderConfiguration
 	// Unmarshal base configuration
 	if err = json.Unmarshal(baseConfigByteValue, &mergedConfig); err != nil {
@@ -262,7 +262,7 @@ func (d *MultiLoaderRunner) mergeConfigurations(baseConfigPath string, experimen
 	}
 
 	log.Debug("Base configuration ", mergedConfig)
-	
+
 	// merge experiment config onto base config
 	experimentConfigBytes, _ := json.Marshal(experiment.Config)
 	if err = json.Unmarshal(experimentConfigBytes, &mergedConfig); err != nil {
@@ -303,7 +303,7 @@ func (d *MultiLoaderRunner) runExperiment(experiment common.LoaderStudy) error {
 				log.Info("Retrying experiment ", experiment.Name)
 				logFile.WriteString("==================================RETRYING==================================\n")
 				experiment.Verbosity = "debug"
-			} else{
+			} else {
 				// Experiment failed set dry run flag to false
 				d.DryRunSuccess = false
 				log.Error("Check log file for more information: ", logFilePath)
@@ -311,7 +311,7 @@ func (d *MultiLoaderRunner) runExperiment(experiment common.LoaderStudy) error {
 				return err
 			}
 			continue
-		}else{
+		} else {
 			break
 		}
 	}
@@ -329,14 +329,14 @@ func (d *MultiLoaderRunner) executeLoaderCommand(experiment common.LoaderStudy, 
 
 	stdout, _ := cmd.StdoutPipe()
 	stderr, _ := cmd.StderrPipe()
-	
+
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	
+
 	go d.logLoaderStdOutput(stdout, logFile)
 	go d.logLoaderStdError(stderr, logFile)
-	
+
 	return cmd.Wait()
 }
 
@@ -346,14 +346,14 @@ func (d *MultiLoaderRunner) logLoaderStdOutput(stdPipe io.ReadCloser, logFile *o
 		m := scanner.Text()
 		// write to log file
 		logFile.WriteString(m + "\n")
-		
+
 		// Log key information
 		if m == "" {
 			continue
 		}
 		logType := common.ParseLogType(m)
 		message := common.ParseLogMessage(m)
-		
+
 		switch logType {
 		case "debug":
 			log.Debug(message)
@@ -361,7 +361,7 @@ func (d *MultiLoaderRunner) logLoaderStdOutput(stdPipe io.ReadCloser, logFile *o
 			log.Trace(message)
 		default:
 			if strings.Contains(message, "Number of successful invocations:") || strings.Contains(message, "Number of failed invocations:") {
-				log.Info(strings.ReplaceAll(strings.ReplaceAll(message, "\\t", " ",), "\\n", ""))
+				log.Info(strings.ReplaceAll(strings.ReplaceAll(message, "\\t", " "), "\\n", ""))
 			}
 		}
 	}
@@ -373,7 +373,7 @@ func (d *MultiLoaderRunner) logLoaderStdError(stdPipe io.ReadCloser, logFile *os
 		m := scanner.Text()
 		// write to log file
 		logFile.WriteString(m + "\n")
-		
+
 		if m == "" {
 			continue
 		}
