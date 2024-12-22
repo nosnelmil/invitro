@@ -13,7 +13,7 @@ import (
 
 var (
 	multiLoaderTestConfigPath string
-	configPath string
+	configPath                string
 )
 
 func init() {
@@ -61,7 +61,6 @@ func TestUnpackExperiment(t *testing.T) {
 		t.Fatalf("Failed to create multi-loader driver: %v", err)
 	}
 
-	
 	t.Run("Unpack using TracesDir (Success)", func(t *testing.T) {
 		// Set TracesDir to test directory
 		multiLoader.MultiLoaderConfig.Studies[0].TracesDir = "./test_multi_trace"
@@ -73,7 +72,7 @@ func TestUnpackExperiment(t *testing.T) {
 			validateUnpackedExperiment(t, subExperiments, experiment, expectedNames, expectedOutputPrefixes)
 		}
 	})
-	
+
 	t.Run("Unpack using TracesDir (Failure: Incorrect Dir)", func(t *testing.T) {
 		expectFatal(t, func() {
 			multiLoader.MultiLoaderConfig.Studies[0].TracesDir = "./test_multi_trace_incorrect"
@@ -120,8 +119,8 @@ func TestPrepareExperiment(t *testing.T) {
 		Name: "example_1",
 		Config: map[string]interface{}{
 			"ExperimentDuration": 10,
-			"TracePath": "./test_multi_trace/example_1_test",
-			"OutputPathPrefix": "./test_output/example_1_test",
+			"TracePath":          "./test_multi_trace/example_1_test",
+			"OutputPathPrefix":   "./test_output/example_1_test",
 		},
 	}
 
@@ -130,7 +129,7 @@ func TestPrepareExperiment(t *testing.T) {
 	}
 	multiLoader.prepareExperiment(subExperiment)
 
-	 // Check that the output directory and config file were created
+	// Check that the output directory and config file were created
 	outputDir := "./test_output"
 	tempConfigPath := EXPERIMENT_TEMP_CONFIG_PATH
 
@@ -139,7 +138,7 @@ func TestPrepareExperiment(t *testing.T) {
 		t.Errorf("Expected output directory '%s' to be created, but it was not", outputDir)
 	}
 
-		// Verify the temporary config file exists
+	// Verify the temporary config file exists
 	if _, err := os.Stat(tempConfigPath); os.IsNotExist(err) {
 		t.Errorf("Expected temp config file '%s' to be created, but it was not", tempConfigPath)
 	}
@@ -150,7 +149,7 @@ func TestPrepareExperiment(t *testing.T) {
 }
 
 // Test mergeConfigurations method
-func TestMergeConfig(t *testing.T){
+func TestMergeConfig(t *testing.T) {
 	// Create a new multi-loader driver with the test config path
 	multiLoader, err := NewMultiLoaderRunner(multiLoaderTestConfigPath, "info", false, false)
 	if err != nil {
@@ -160,8 +159,8 @@ func TestMergeConfig(t *testing.T){
 		Name: "example_1",
 		Config: map[string]interface{}{
 			"ExperimentDuration": 10,
-			"TracePath": "./test_multi_trace/example_1_test",
-			"OutputPathPrefix": "./test_output/example_1_test",
+			"TracePath":          "./test_multi_trace/example_1_test",
+			"OutputPathPrefix":   "./test_output/example_1_test",
 		},
 	}
 	outputConfig := multiLoader.mergeConfigurations("./test_configs/test_base_loader_config.json", experiment)
@@ -177,7 +176,7 @@ func TestMergeConfig(t *testing.T){
 	}
 }
 
-func TestMultiConfigValidator(t *testing.T){
+func TestMultiConfigValidator(t *testing.T) {
 	// Create a new multi-loader driver with the test config path
 	multiLoader, err := NewMultiLoaderRunner(multiLoaderTestConfigPath, "info", false, false)
 	if err != nil {
@@ -223,7 +222,7 @@ func TestMultiConfigValidator(t *testing.T){
 	})
 }
 
-func expectFatal(t *testing.T,funcToTest func()) {
+func expectFatal(t *testing.T, funcToTest func()) {
 	fatal := false
 	originalExitFunc := log.StandardLogger().ExitFunc
 

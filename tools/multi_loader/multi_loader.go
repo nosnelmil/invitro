@@ -10,10 +10,10 @@ import (
 )
 
 var (
-	multiLoaderConfigPath    = flag.String("multiLoaderConfig", "tools/multi_loader/multi_loader_config.json", "Path to multi loader configuration file")
-    verbosity     = flag.String("verbosity", "info", "Logging verbosity - choose from [info, debug, trace]")
-	iatGeneration = flag.Bool("iatGeneration", false, "Generate iats only and skip invocations")
-	generated     = flag.Bool("generated", false, "If iats were already generated")
+	multiLoaderConfigPath = flag.String("multiLoaderConfig", "tools/multi_loader/multi_loader_config.json", "Path to multi loader configuration file")
+	verbosity             = flag.String("verbosity", "info", "Logging verbosity - choose from [info, debug, trace]")
+	iatGeneration         = flag.Bool("iatGeneration", false, "Generate iats only and skip invocations")
+	generated             = flag.Bool("generated", false, "If iats were already generated")
 )
 
 func init() {

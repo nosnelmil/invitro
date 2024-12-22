@@ -10,7 +10,9 @@
             "Verbosity": "info",
             "TracesDir": "",
             "TracesFormat": "data/traces/multi-exp-test/example_{}_test",
-            "TraceValues": [1],
+            "TraceValues": [
+                1
+            ],
             "OutputDir": "data/out/multi-test",
             "PreScript": "",
             "PostScript": ""
