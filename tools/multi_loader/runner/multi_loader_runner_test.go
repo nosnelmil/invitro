@@ -8,7 +8,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"github.com/vhive-serverless/loader/pkg/common"
+	ml_common "github.com/vhive-serverless/loader/tools/multi_loader/common"
+	"github.com/vhive-serverless/loader/tools/multi_loader/types"
 )
 
 var (
@@ -26,7 +27,7 @@ func init() {
 
 func TestUnpackExperiment(t *testing.T) {
 	// helper func to validate unpacked experiments
-	validateUnpackedExperiment := func(t *testing.T, experimentConfig []common.LoaderStudy, studyConfig common.LoaderStudy, expectedNames []string, expectedOutputPrefixes []string) {
+	validateUnpackedExperiment := func(t *testing.T, experimentConfig []types.LoaderStudy, studyConfig types.LoaderStudy, expectedNames []string, expectedOutputPrefixes []string) {
 		if len(experimentConfig) != len(expectedNames) {
 			t.Errorf("Expected %d sub-experiments, got %d", len(expectedNames), len(experimentConfig))
 			return
@@ -115,7 +116,7 @@ func TestPrepareExperiment(t *testing.T) {
 		t.Fatalf("Failed to create multi-loader driver: %v", err)
 	}
 
-	subExperiment := common.LoaderStudy{
+	subExperiment := types.LoaderStudy{
 		Name: "example_1",
 		Config: map[string]interface{}{
 			"ExperimentDuration": 10,
@@ -155,7 +156,7 @@ func TestMergeConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create multi-loader driver: %v", err)
 	}
-	experiment := common.LoaderStudy{
+	experiment := types.LoaderStudy{
 		Name: "example_1",
 		Config: map[string]interface{}{
 			"ExperimentDuration": 10,
@@ -184,14 +185,14 @@ func TestMultiConfigValidator(t *testing.T) {
 	}
 	t.Run("CheckMultiLoaderConfig (Success)", func(t *testing.T) {
 		// Check if all paths are valid
-		common.CheckMultiLoaderConfig(multiLoader.MultiLoaderConfig)
+		ml_common.CheckMultiLoaderConfig(multiLoader.MultiLoaderConfig)
 	})
 
 	t.Run("CheckMultiLoaderConfig (Failure: No Study)", func(t *testing.T) {
 		expectFatal(t, func() {
 			temp := multiLoader.MultiLoaderConfig.Studies
 			multiLoader.MultiLoaderConfig.Studies = nil
-			common.CheckMultiLoaderConfig(multiLoader.MultiLoaderConfig)
+			ml_common.CheckMultiLoaderConfig(multiLoader.MultiLoaderConfig)
 			multiLoader.MultiLoaderConfig.Studies = temp
 		})
 	})
@@ -201,14 +202,14 @@ func TestMultiConfigValidator(t *testing.T) {
 			multiLoader.MultiLoaderConfig.Studies[0].TracesDir = ""
 			multiLoader.MultiLoaderConfig.Studies[0].TracesFormat = ""
 			multiLoader.MultiLoaderConfig.Studies[0].TraceValues = nil
-			common.CheckMultiLoaderConfig(multiLoader.MultiLoaderConfig)
+			ml_common.CheckMultiLoaderConfig(multiLoader.MultiLoaderConfig)
 		})
 	})
 
 	t.Run("CheckMultiLoaderConfig (Failure: Invalid TracesFormat)", func(t *testing.T) {
 		expectFatal(t, func() {
 			multiLoader.MultiLoaderConfig.Studies[0].TracesFormat = "invalid_format"
-			common.CheckMultiLoaderConfig(multiLoader.MultiLoaderConfig)
+			ml_common.CheckMultiLoaderConfig(multiLoader.MultiLoaderConfig)
 		})
 	})
 
@@ -217,7 +218,7 @@ func TestMultiConfigValidator(t *testing.T) {
 			multiLoader.MultiLoaderConfig.Studies[0].TraceValues = nil
 			multiLoader.MultiLoaderConfig.Studies[0].TracesDir = ""
 			multiLoader.MultiLoaderConfig.Studies[0].TracesFormat = "example_{}_test"
-			common.CheckMultiLoaderConfig(multiLoader.MultiLoaderConfig)
+			ml_common.CheckMultiLoaderConfig(multiLoader.MultiLoaderConfig)
 		})
 	})
 }
