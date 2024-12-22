@@ -14,6 +14,8 @@ import (
 
 	"github.com/vhive-serverless/loader/pkg/common"
 	"github.com/vhive-serverless/loader/pkg/config"
+	ml_common "github.com/vhive-serverless/loader/tools/multi_loader/common"
+	"github.com/vhive-serverless/loader/tools/multi_loader/types"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -26,8 +28,8 @@ const (
 )
 
 type MultiLoaderRunner struct {
-	MultiLoaderConfig common.MultiLoaderConfiguration
-	NodeGroup         common.NodeGroup
+	MultiLoaderConfig types.MultiLoaderConfiguration
+	NodeGroup         types.NodeGroup
 	DryRunSuccess     bool
 	Verbosity         string
 	IatGeneration     bool
@@ -38,13 +40,13 @@ type MultiLoaderRunner struct {
 
 // init multi loader runner
 func NewMultiLoaderRunner(configPath string, verbosity string, iatGeneration bool, generated bool) (*MultiLoaderRunner, error) {
-	multiLoaderConfig := config.ReadMultiLoaderConfigurationFile(configPath)
+	multiLoaderConfig := ml_common.ReadMultiLoaderConfigurationFile(configPath)
 
 	// validate configuration
-	common.CheckMultiLoaderConfig(multiLoaderConfig)
+	ml_common.CheckMultiLoaderConfig(multiLoaderConfig)
 
 	// determine platform
-	platform := determinePlatform(multiLoaderConfig)
+	platform := ml_common.DeterminePlatformFromConfig(multiLoaderConfig)
 
 	runner := MultiLoaderRunner{
 		MultiLoaderConfig: multiLoaderConfig,
@@ -57,20 +59,6 @@ func NewMultiLoaderRunner(configPath string, verbosity string, iatGeneration boo
 	}
 
 	return &runner, nil
-}
-
-func determinePlatform(multiLoaderConfig common.MultiLoaderConfiguration) string {
-	// Determine platform
-	baseConfigByteValue, err := os.ReadFile(multiLoaderConfig.BaseConfigPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	var loaderConfig config.LoaderConfiguration
-	// Unmarshal base configuration
-	if err = json.Unmarshal(baseConfigByteValue, &loaderConfig); err != nil {
-		log.Fatal(err)
-	}
-	return loaderConfig.Platform
 }
 
 func (d *MultiLoaderRunner) RunDryRun() {
@@ -131,9 +119,9 @@ func (d *MultiLoaderRunner) run() {
 * but first by duplicating the study to multiple studies with different values
 * in the config field. Those values will override the base loader config later
  */
-func (d *MultiLoaderRunner) unpackStudy(experiment common.LoaderStudy) []common.LoaderStudy {
+func (d *MultiLoaderRunner) unpackStudy(experiment types.LoaderStudy) []types.LoaderStudy {
 	log.Info("Unpacking experiment ", experiment.Name)
-	var experiments []common.LoaderStudy
+	var experiments []types.LoaderStudy
 
 	// if user specified a trace directory
 	if experiment.TracesDir != "" {
@@ -149,8 +137,8 @@ func (d *MultiLoaderRunner) unpackStudy(experiment common.LoaderStudy) []common.
 	return experiments
 }
 
-func (d *MultiLoaderRunner) unpackFromTraceDir(study common.LoaderStudy) []common.LoaderStudy {
-	var experiments []common.LoaderStudy
+func (d *MultiLoaderRunner) unpackFromTraceDir(study types.LoaderStudy) []types.LoaderStudy {
+	var experiments []types.LoaderStudy
 	files, err := os.ReadDir(study.TracesDir)
 	if err != nil {
 		log.Fatal(err)
@@ -165,10 +153,10 @@ func (d *MultiLoaderRunner) unpackFromTraceDir(study common.LoaderStudy) []commo
 	return experiments
 }
 
-func (d *MultiLoaderRunner) unpackFromTraceValues(study common.LoaderStudy) []common.LoaderStudy {
-	var experiments []common.LoaderStudy
+func (d *MultiLoaderRunner) unpackFromTraceValues(study types.LoaderStudy) []types.LoaderStudy {
+	var experiments []types.LoaderStudy
 	for _, traceValue := range study.TraceValues {
-		tracePath := strings.Replace(study.TracesFormat, common.TraceFormatString, fmt.Sprintf("%v", traceValue), -1)
+		tracePath := strings.Replace(study.TracesFormat, ml_common.TraceFormatString, fmt.Sprintf("%v", traceValue), -1)
 		fileName := path.Base(tracePath)
 		newExperiment := d.duplicateStudy(study, fileName)
 		newExperiment.Config["TracePath"] = tracePath
@@ -178,8 +166,8 @@ func (d *MultiLoaderRunner) unpackFromTraceValues(study common.LoaderStudy) []co
 	return experiments
 }
 
-func (d *MultiLoaderRunner) unpackSingleExperiment(study common.LoaderStudy) []common.LoaderStudy {
-	var experiments []common.LoaderStudy
+func (d *MultiLoaderRunner) unpackSingleExperiment(study types.LoaderStudy) []types.LoaderStudy {
+	var experiments []types.LoaderStudy
 	pathDir := ""
 	if study.Config["OutputPathPrefix"] != nil {
 		pathDir = path.Dir(study.Config["OutputPathPrefix"].(string))
@@ -195,7 +183,7 @@ func (d *MultiLoaderRunner) unpackSingleExperiment(study common.LoaderStudy) []c
 /**
 * Creates a deepcopy of a given study and updates relevant fields to utilise the provided new filename
  */
-func (d *MultiLoaderRunner) duplicateStudy(study common.LoaderStudy, newFileName string) common.LoaderStudy {
+func (d *MultiLoaderRunner) duplicateStudy(study types.LoaderStudy, newFileName string) types.LoaderStudy {
 	newStudy, err := common.DeepCopy(study)
 	if err != nil {
 		log.Fatal(err)
@@ -216,7 +204,7 @@ func (d *MultiLoaderRunner) duplicateStudy(study common.LoaderStudy, newFileName
 	return newStudy
 }
 
-func (d *MultiLoaderRunner) addCommandFlags(study common.LoaderStudy) {
+func (d *MultiLoaderRunner) addCommandFlags(study types.LoaderStudy) {
 	// Add flags to experiment config
 	if study.Verbosity == "" {
 		study.Verbosity = d.Verbosity
@@ -232,7 +220,7 @@ func (d *MultiLoaderRunner) addCommandFlags(study common.LoaderStudy) {
 /**
 * Prepare experiment by merging with base config, creating output directory and writing experiment config to temp file
  */
-func (d *MultiLoaderRunner) prepareExperiment(experiment common.LoaderStudy) {
+func (d *MultiLoaderRunner) prepareExperiment(experiment types.LoaderStudy) {
 	log.Info("Preparing ", experiment.Name)
 	// Merge base configs with experiment configs
 	experimentConfig := d.mergeConfigurations(d.MultiLoaderConfig.BaseConfigPath, experiment)
@@ -250,7 +238,7 @@ func (d *MultiLoaderRunner) prepareExperiment(experiment common.LoaderStudy) {
 /**
 * Merge base configs with partial loader configs
  */
-func (d *MultiLoaderRunner) mergeConfigurations(baseConfigPath string, experiment common.LoaderStudy) config.LoaderConfiguration {
+func (d *MultiLoaderRunner) mergeConfigurations(baseConfigPath string, experiment types.LoaderStudy) config.LoaderConfiguration {
 	// Read base configuration
 	baseConfigByteValue, err := os.ReadFile(baseConfigPath)
 	if err != nil {
@@ -284,7 +272,7 @@ func (d *MultiLoaderRunner) writeExperimentConfigToTempFile(experimentConfig con
 	}
 }
 
-func (d *MultiLoaderRunner) runExperiment(experiment common.LoaderStudy) error {
+func (d *MultiLoaderRunner) runExperiment(experiment types.LoaderStudy) error {
 	log.Info("Running ", experiment.Name)
 	log.Debug("Experiment configuration ", experiment.Config)
 
@@ -322,7 +310,7 @@ func (d *MultiLoaderRunner) runExperiment(experiment common.LoaderStudy) error {
 	return nil
 }
 
-func (d *MultiLoaderRunner) executeLoaderCommand(experiment common.LoaderStudy, logFile *os.File) error {
+func (d *MultiLoaderRunner) executeLoaderCommand(experiment types.LoaderStudy, logFile *os.File) error {
 	cmd := exec.Command("go", "run", LOADER_PATH,
 		"--config="+EXPERIMENT_TEMP_CONFIG_PATH,
 		"--verbosity="+experiment.Verbosity,
