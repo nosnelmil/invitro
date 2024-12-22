@@ -157,7 +157,7 @@ func (d *MultiLoaderRunner) unpackFromTraceDir(study common.LoaderStudy) []commo
 	}
 
 	for _, file := range files {
-		newExperiment := d.createNewStudy(study, file.Name())
+		newExperiment := d.duplicateStudy(study, file.Name())
 		newExperiment.Config["TracePath"] = path.Join(study.TracesDir, file.Name())
 		newExperiment.Name += "_" + file.Name()
 		experiments = append(experiments, newExperiment)
@@ -170,7 +170,7 @@ func (d *MultiLoaderRunner) unpackFromTraceValues(study common.LoaderStudy) []co
 	for _, traceValue := range study.TraceValues {
 		tracePath := strings.Replace(study.TracesFormat, common.TraceFormatString, fmt.Sprintf("%v", traceValue), -1)
 		fileName := path.Base(tracePath)
-		newExperiment := d.createNewStudy(study, fileName)
+		newExperiment := d.duplicateStudy(study, fileName)
 		newExperiment.Config["TracePath"] = tracePath
 		newExperiment.Name += "_" + fileName
 		experiments = append(experiments, newExperiment)
@@ -187,12 +187,15 @@ func (d *MultiLoaderRunner) unpackSingleExperiment(study common.LoaderStudy) []c
 		pathDir = study.OutputDir
 	}
 	study.OutputDir = pathDir
-	newExperiment := d.createNewStudy(study, study.Name)
+	newExperiment := d.duplicateStudy(study, study.Name)
 	experiments = append(experiments, newExperiment)
 	return experiments
 }
 
-func (d *MultiLoaderRunner) createNewStudy(study common.LoaderStudy, fileName string) common.LoaderStudy {
+/**
+* Creates a deepcopy of a given study and updates relevant fields to utilise the provided new filename
+ */
+func (d *MultiLoaderRunner) duplicateStudy(study common.LoaderStudy, newFileName string) common.LoaderStudy {
 	newStudy, err := common.DeepCopy(study)
 	if err != nil {
 		log.Fatal(err)
@@ -206,8 +209,8 @@ func (d *MultiLoaderRunner) createNewStudy(study common.LoaderStudy, fileName st
 		study.OutputDir,
 		study.Name,
 		dryRunAdditionalPath,
-		time.Now().Format(TIME_FORMAT)+"_"+fileName,
-		fileName,
+		time.Now().Format(TIME_FORMAT)+"_"+newFileName,
+		newFileName,
 	)
 	d.addCommandFlags(newStudy)
 	return newStudy
