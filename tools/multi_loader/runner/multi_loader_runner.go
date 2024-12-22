@@ -46,7 +46,7 @@ func NewMultiLoaderRunner(configPath string, verbosity string, iatGeneration boo
 	ml_common.CheckMultiLoaderConfig(multiLoaderConfig)
 
 	// determine platform
-	platform := determinePlatform(multiLoaderConfig)
+	platform := ml_common.DeterminePlatformFromConfig(multiLoaderConfig)
 
 	runner := MultiLoaderRunner{
 		MultiLoaderConfig: multiLoaderConfig,
@@ -59,20 +59,6 @@ func NewMultiLoaderRunner(configPath string, verbosity string, iatGeneration boo
 	}
 
 	return &runner, nil
-}
-
-func determinePlatform(multiLoaderConfig types.MultiLoaderConfiguration) string {
-	// Determine platform
-	baseConfigByteValue, err := os.ReadFile(multiLoaderConfig.BaseConfigPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	var loaderConfig config.LoaderConfiguration
-	// Unmarshal base configuration
-	if err = json.Unmarshal(baseConfigByteValue, &loaderConfig); err != nil {
-		log.Fatal(err)
-	}
-	return loaderConfig.Platform
 }
 
 func (d *MultiLoaderRunner) RunDryRun() {
