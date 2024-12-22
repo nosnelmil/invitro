@@ -62,18 +62,18 @@ jobs:
         run: go run tools/multi_loader/multi_loader.go --config tools/multi_loader/runner/test_multi_loader_config.json
 
       - name: Check the output
-          run: |
-            folder_count=$(find data/out/multi-test/ -mindepth 1 -maxdepth 1 -type d | wc -l)
-            if [ "$folder_count" -eq 3 ]; then
-              echo "Correct number of folders found"
-            else
-              echo "Folder count is $folder_count, expected 3"
-              exit 1
-            fi
-            echo "Listing directories in data/out/multi-test/:"
-            ls -l data/out/multi-test/
-            echo "Listing all folders and sub dir in data/out/multi-test/:"
-            find . -type d
+        run: |
+          folder_count=$(find data/out/multi-test/ -mindepth 1 -maxdepth 1 -type d | wc -l)
+          if [ "$folder_count" -eq 3 ]; then
+            echo "Correct number of folders found"
+          else
+            echo "Folder count is $folder_count, expected 3"
+            exit 1
+          fi
+          echo "Listing directories in data/out/multi-test/:"
+          ls -l data/out/multi-test/
+          echo "Listing all folders and sub dir in data/out/multi-test/:"
+          find . -type d
 
       - name: Down
         if: ${{ always() }}
