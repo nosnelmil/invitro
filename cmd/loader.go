@@ -27,10 +27,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/vhive-serverless/loader/pkg/generator"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/vhive-serverless/loader/pkg/generator"
 
 	"golang.org/x/exp/slices"
 
@@ -53,7 +54,7 @@ var (
 	verbosity     = flag.String("verbosity", "info", "Logging verbosity - choose from [info, debug, trace]")
 	iatGeneration = flag.Bool("iatGeneration", false, "Generate IATs only or run invocations as well")
 	iatFromFile   = flag.Bool("generated", false, "True if iats were already generated")
-	dryRun		  = flag.Bool("dryRun", false, "Dry run mode - do not deploy functions or generate invocations")
+	dryRun        = flag.Bool("dryRun", false, "Dry run mode - do not deploy functions or generate invocations")
 )
 
 func init() {
@@ -211,6 +212,7 @@ func runTraceMode(cfg *config.LoaderConfiguration, readIATFromFile bool, writeIA
 		Functions: functions,
 	})
 
+	// Skip experiments execution during dry run mode
 	if *dryRun {
 		return
 	}
@@ -242,6 +244,11 @@ func runRPSMode(cfg *config.LoaderConfiguration, readIATFromFile bool, writeIATs
 
 		Functions: generator.CreateRPSFunctions(cfg, warmFunction, warmStartCount, coldFunctions, coldStartCount),
 	})
+
+	// Skip experiments execution during dry run mode
+	if *dryRun {
+		return
+	}
 
 	experimentDriver.ReadOrWriteFileSpecification(writeIATsToFile, readIATFromFile)
 	experimentDriver.RunExperiment()
