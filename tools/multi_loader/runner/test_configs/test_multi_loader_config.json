@@ -8,7 +8,7 @@
             "IatGeneration": false,
             "Generated": false,
             "Verbosity": "info",
-            "TracesFormat": "tools/multi_loader/runner/test_configs/example_{}_test",
+            "TracesFormat": "tools/multi_loader/runner/test_multi_trace/example_{}_test",
             "TraceValues": [
                 "1",
                 "2",
