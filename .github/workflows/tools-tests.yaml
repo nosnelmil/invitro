@@ -2,7 +2,7 @@ name: Tools tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, lenson/workflows-test ]
     paths:
       - "tools/**"
   pull_request:
@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [ tools/plotter, ]
+        module: [ tools/plotter, tools/multi_loader/runner ]
     steps:
     - name: Set up Golang
       uses: actions/setup-go@v5
