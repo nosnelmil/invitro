@@ -61,19 +61,29 @@ jobs:
       - name: Build and run multi-loader
         run: go run tools/multi_loader/multi_loader.go --multiLoaderConfigPath tools/multi_loader/runner/test_configs/test_multi_loader_config.json
 
-      - name: Check the output
+      - name: Check multi_loader output
         run: |
-          folder_count=$(find data/out/multi-test/ -mindepth 1 -maxdepth 1 -type d | wc -l)
-          if [ "$folder_count" -eq 3 ]; then
-            echo "Correct number of folders found"
-          else
-            echo "Folder count is $folder_count, expected 3"
+          # check if there are 4 output folders: *_example_1_test, *_example_2_test, *_example_3_test & dry_run
+          folder_count=$(find data/out/multi-test/test-experiment -mindepth 1 -maxdepth 1 -type d | wc -l)
+          if [ "$folder_count" -ne 4 ]; then
+            echo "Output folder count is $folder_count, expected 4"
             exit 1
           fi
-          echo "Listing directories in data/out/multi-test/:"
-          ls -l data/out/multi-test/
-          echo "Listing all folders and sub dir in data/out/multi-test/:"
-          find . -type d
+          
+            # Check for errors in each output CSV file
+        for file in *_example_1_test/example_1_test_duration_1.csv \
+                    *_example_2_test/example_2_test_duration_1.csv \
+                    *_example_3_test/example_3_test_duration_1.csv; do
+          if [ ! -f "$file" ]; then
+            echo "File $file not found!"
+            exit 1
+          fi
+
+          if [ $(grep true "$file" | wc -l) -ne 0 ]; then
+            echo "Error found in $file"
+            exit 1
+          fi
+        done
 
       - name: Down
         if: ${{ always() }}
