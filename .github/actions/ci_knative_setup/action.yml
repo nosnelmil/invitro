@@ -22,15 +22,19 @@ runs:
         go-version: ${{ inputs.go-version }}
 
     - name: Create k8s Kind Cluster
+      shell: bash
       run: bash ./scripts/konk-ci/01-kind.sh
 
     - name: Install Serving
+      shell: bash
       run: bash ./scripts/konk-ci/02-serving.sh
 
     - name: Install Kourier
+      shell: bash
       run: bash ./scripts/konk-ci/02-kourier.sh
 
     - name: Setup domain and autoscaler
+      shell: bash
       run: |
         INGRESS_HOST="127.0.0.1"
         KNATIVE_DOMAIN=$INGRESS_HOST.sslip.io
