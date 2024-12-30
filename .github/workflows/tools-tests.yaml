@@ -2,7 +2,7 @@ name: Tools tests
 
 on:
   push:
-    branches: [ main, multi-loader-actions]
+    branches: [ main ]
     paths:
       - "tools/**"
   pull_request:
