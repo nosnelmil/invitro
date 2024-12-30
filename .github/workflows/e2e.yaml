@@ -29,6 +29,9 @@ jobs:
             trace_func_go,
           ]
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Set up Kubernetes Kind Cluster
         uses: ./.github/actions/ci_knative_setup
 
@@ -68,6 +71,9 @@ jobs:
             trace_func_go,
           ]
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Set up Kubernetes Kind Cluster
         uses: ./.github/actions/ci_knative_setup
 
