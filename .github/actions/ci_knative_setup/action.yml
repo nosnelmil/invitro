@@ -5,11 +5,6 @@ inputs:
     description: Version of Go to set up
     required: true
     default: '1.22'
-
-defaults:
-  run:
-    shell: bash
-
 runs:
   using: "composite"
   steps:
@@ -19,6 +14,7 @@ runs:
         lfs: "true"
 
     - name: Checkout LFS objects
+      shell: bash
       run: git lfs checkout
 
     - name: Set up Go
@@ -27,15 +23,19 @@ runs:
         go-version: ${{ inputs.go-version }}
 
     - name: Create k8s Kind Cluster
+      shell: bash
       run: bash ./scripts/konk-ci/01-kind.sh
 
     - name: Install Serving
+      shell: bash
       run: bash ./scripts/konk-ci/02-serving.sh
 
     - name: Install Kourier
+      shell: bash
       run: bash ./scripts/konk-ci/02-kourier.sh
 
     - name: Setup domain and autoscaler
+      shell: bash
       run: |
         INGRESS_HOST="127.0.0.1"
         KNATIVE_DOMAIN=$INGRESS_HOST.sslip.io
