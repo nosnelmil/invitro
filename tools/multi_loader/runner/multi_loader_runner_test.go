@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,10 +20,16 @@ var (
 
 func init() {
 	wd, _ := os.Getwd()
-	multiLoaderTestConfigPath = filepath.Join(wd, "./test_configs/test_multi_loader_config.json")
-	configPath = filepath.Join(wd, "./test_configs/base_loader_config.json")
+	multiLoaderTestConfigPath = filepath.Join(wd, "../multi_loader_config.json")
+	configPath = filepath.Join(wd, "../base_loader_config.json")
 	log.Info("Test config path: ", multiLoaderTestConfigPath)
 	log.Info("Test config path: ", configPath)
+
+	// Override the BaseConfigPath field in multi_loader_config.json
+	mlConfig := ml_common.ReadMultiLoaderConfigurationFile(multiLoaderTestConfigPath)
+	mlConfig.BaseConfigPath = "../base_loader_config.json"
+	multiLoaderTestConfigPath = "../multi_loader_config_test.json"
+	ml_common.WriteMultiLoaderConfigurationFile(mlConfig, multiLoaderTestConfigPath)
 }
 
 func TestUnpackExperiment(t *testing.T) {
@@ -64,7 +71,7 @@ func TestUnpackExperiment(t *testing.T) {
 
 	t.Run("Unpack using TracesDir (Success)", func(t *testing.T) {
 		// Set TracesDir to test directory
-		multiLoader.MultiLoaderConfig.Studies[0].TracesDir = "./test_multi_trace"
+		multiLoader.MultiLoaderConfig.Studies[0].TracesDir = "../test_data"
 
 		for _, experiment := range multiLoader.MultiLoaderConfig.Studies {
 			subExperiments := multiLoader.unpackStudy(experiment)
@@ -76,7 +83,7 @@ func TestUnpackExperiment(t *testing.T) {
 
 	t.Run("Unpack using TracesDir (Failure: Incorrect Dir)", func(t *testing.T) {
 		expectFatal(t, func() {
-			multiLoader.MultiLoaderConfig.Studies[0].TracesDir = "./test_multi_trace_incorrect"
+			multiLoader.MultiLoaderConfig.Studies[0].TracesDir = "../test_data_incorrect"
 			for _, experiment := range multiLoader.MultiLoaderConfig.Studies {
 				_ = multiLoader.unpackStudy(experiment)
 			}
@@ -90,7 +97,7 @@ func TestUnpackExperiment(t *testing.T) {
 			subExperiments := multiLoader.unpackStudy(experiment)
 			expectedNames := make([]string, len(experiment.TraceValues))
 			for i, traceValue := range experiment.TraceValues {
-				expectedNames[i] = experiment.Name + "_" + traceValue.(string)
+				expectedNames[i] = experiment.Name + "_example_" + fmt.Sprintf("%v", traceValue) + "_test"
 			}
 			validateUnpackedExperiment(t, subExperiments, experiment, expectedNames, nil)
 		}
@@ -120,7 +127,7 @@ func TestPrepareExperiment(t *testing.T) {
 		Name: "example_1",
 		Config: map[string]interface{}{
 			"ExperimentDuration": 10,
-			"TracePath":          "./test_multi_trace/example_1_test",
+			"TracePath":          "../test_data/example_1_test",
 			"OutputPathPrefix":   "./test_output/example_1_test",
 		},
 	}
@@ -160,14 +167,14 @@ func TestMergeConfig(t *testing.T) {
 		Name: "example_1",
 		Config: map[string]interface{}{
 			"ExperimentDuration": 10,
-			"TracePath":          "./test_multi_trace/example_1_test",
+			"TracePath":          "../test_data/example_1_test",
 			"OutputPathPrefix":   "./test_output/example_1_test",
 		},
 	}
-	outputConfig := multiLoader.mergeConfigurations("./test_configs/test_base_loader_config.json", experiment)
+	outputConfig := multiLoader.mergeConfigurations(configPath, experiment)
 	// Check if the configurations are merged
-	if outputConfig.TracePath != "./test_multi_trace/example_1_test" {
-		t.Errorf("Expected TracePath to be './test_multi_trace/example_1_test', got %v", experiment.Config["TracePath"])
+	if outputConfig.TracePath != "../test_data/example_1_test" {
+		t.Errorf("Expected TracePath to be '../test_data/example_1_test', got %v", experiment.Config["TracePath"])
 	}
 	if outputConfig.OutputPathPrefix != "./test_output/example_1_test" {
 		t.Errorf("Expected OutputPathPrefix to be './test_output/example_1_test', got %v", experiment.Config["OutputPathPrefix"])
