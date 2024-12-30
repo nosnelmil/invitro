@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,6 +24,12 @@ func init() {
 	configPath = filepath.Join(wd, "../base_loader_config.json")
 	log.Info("Test config path: ", multiLoaderTestConfigPath)
 	log.Info("Test config path: ", configPath)
+
+	// Override the BaseConfigPath field in multi_loader_config.json
+	mlConfig := ml_common.ReadMultiLoaderConfigurationFile(multiLoaderTestConfigPath)
+	mlConfig.BaseConfigPath = "../base_loader_config.json"
+	multiLoaderTestConfigPath = "../multi_loader_config_test.json"
+	ml_common.WriteMultiLoaderConfigurationFile(mlConfig, multiLoaderTestConfigPath)
 }
 
 func TestUnpackExperiment(t *testing.T) {
@@ -90,7 +97,7 @@ func TestUnpackExperiment(t *testing.T) {
 			subExperiments := multiLoader.unpackStudy(experiment)
 			expectedNames := make([]string, len(experiment.TraceValues))
 			for i, traceValue := range experiment.TraceValues {
-				expectedNames[i] = experiment.Name + "_" + traceValue.(string)
+				expectedNames[i] = experiment.Name + "_example_" + fmt.Sprintf("%v", traceValue) + "_test"
 			}
 			validateUnpackedExperiment(t, subExperiments, experiment, expectedNames, nil)
 		}
