@@ -29,6 +29,10 @@ jobs:
             trace_func_go,
           ]
     steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: "true"
+
       - name: Set up common environment
         uses: ./.github/workflows/ci_knative_setup.yml
 
@@ -68,6 +72,10 @@ jobs:
             trace_func_go,
           ]
     steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: "true"
+          
       - name: Set up common environment
         uses: ./.github/workflows/ci_knative_setup.yml
 
