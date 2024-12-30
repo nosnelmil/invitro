@@ -8,7 +8,7 @@
             "IatGeneration": false,
             "Generated": false,
             "Verbosity": "info",
-            "TracesFormat": "tools/multi_loader/runner/test_multi_trace/example_{}_test",
+            "TracesFormat": "tools/multi_loader/test_data/example_{}_test",
             "TraceValues": [
                 "1",
                 "2",
@@ -17,5 +17,5 @@
             "OutputDir": "data/out/multi-test"
         }
     ],
-    "BaseConfigPath": "tools/multi_loader/runner/test_configs/test_base_loader_config.json"
+    "BaseConfigPath": "tools/multi_loader/base_loader_config.json"
 }

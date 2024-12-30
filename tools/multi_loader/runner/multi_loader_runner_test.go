@@ -19,8 +19,8 @@ var (
 
 func init() {
 	wd, _ := os.Getwd()
-	multiLoaderTestConfigPath = filepath.Join(wd, "./test_configs/test_multi_loader_config.json")
-	configPath = filepath.Join(wd, "./test_configs/base_loader_config.json")
+	multiLoaderTestConfigPath = filepath.Join(wd, "../multi_loader_config.json")
+	configPath = filepath.Join(wd, "../base_loader_config.json")
 	log.Info("Test config path: ", multiLoaderTestConfigPath)
 	log.Info("Test config path: ", configPath)
 }

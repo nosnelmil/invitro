@@ -59,7 +59,7 @@ jobs:
           kubectl label node knative-control-plane loader-nodetype=worker
 
       - name: Build and run multi-loader
-        run: go run tools/multi_loader/multi_loader.go --multiLoaderConfigPath tools/multi_loader/runner/test_configs/test_multi_loader_config.json
+        run: go run tools/multi_loader/multi_loader.go --multiLoaderConfigPath tools/multi_loader/multi_loader_config.json
 
       - name: Check multi_loader output
         run: |
@@ -69,7 +69,7 @@ jobs:
             echo "Output folder count is $folder_count, expected 4"
             exit 1
           else
-            echo "Output correct number of output folders"
+            echo "Output correct number of folders"
           fi
           
             # Check for errors in each output CSV file
@@ -85,7 +85,6 @@ jobs:
             fi
           done
           echo "No errors found in output files"
-
 
       - name: Down
         if: ${{ always() }}
