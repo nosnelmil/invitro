@@ -171,7 +171,7 @@ func TestMergeConfig(t *testing.T) {
 			"OutputPathPrefix":   "./test_output/example_1_test",
 		},
 	}
-	outputConfig := multiLoader.mergeConfigurations("./test_configs/test_base_loader_config.json", experiment)
+	outputConfig := multiLoader.mergeConfigurations(configPath, experiment)
 	// Check if the configurations are merged
 	if outputConfig.TracePath != "../test_data/example_1_test" {
 		t.Errorf("Expected TracePath to be '../test_data/example_1_test', got %v", experiment.Config["TracePath"])
