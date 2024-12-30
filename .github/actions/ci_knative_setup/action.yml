@@ -1,5 +1,5 @@
-name: CI Setup
-description: Sets up the CI environment with Kind, Serving, and Kourier for Knative
+name: CI Knative Setup
+description: Sets up the CI environment with Kind, Serving, and Kourier for Knative platform type
 inputs:
   go-version:
     description: Version of Go to set up
