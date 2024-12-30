@@ -29,12 +29,8 @@ jobs:
             trace_func_go,
           ]
     steps:
-      - uses: actions/checkout@v4
-        with:
-          lfs: "true"
-
-      - name: Set up common environment
-        uses: ./.github/workflows/ci_knative_setup.yml
+      - name: Set up Kubernetes Kind Cluster
+        uses: ./.github/actions/ci_knative_setup
 
       - name: Build and run loader
         run: go run cmd/loader.go --config pkg/config/test_config.json
@@ -72,12 +68,8 @@ jobs:
             trace_func_go,
           ]
     steps:
-      - uses: actions/checkout@v4
-        with:
-          lfs: "true"
-          
-      - name: Set up common environment
-        uses: ./.github/workflows/ci_knative_setup.yml
+      - name: Set up Kubernetes Kind Cluster
+        uses: ./.github/actions/ci_knative_setup
 
       - name: Build and run multi-loader
         run: go run tools/multi_loader/multi_loader.go --multiLoaderConfigPath tools/multi_loader/multi_loader_config.json
