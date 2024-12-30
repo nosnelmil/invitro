@@ -30,7 +30,7 @@ jobs:
           ]
     steps:
       - name: Set up common environment
-        uses: ./.github/workflows/ci-setup.yml
+        uses: ./.github/workflows/ci_knative_setup.yml
 
       - name: Build and run loader
         run: go run cmd/loader.go --config pkg/config/test_config.json
@@ -69,7 +69,7 @@ jobs:
           ]
     steps:
       - name: Set up common environment
-        uses: ./.github/workflows/ci-setup.yml
+        uses: ./.github/workflows/ci_knative_setup.yml
 
       - name: Build and run multi-loader
         run: go run tools/multi_loader/multi_loader.go --multiLoaderConfigPath tools/multi_loader/multi_loader_config.json
