@@ -17,5 +17,5 @@
             "OutputDir": "data/out/multi-test"
         }
     ],
-    "BaseConfigPath": "tools/multi_loader/base_loader_config.json"
+    "BaseConfigPath": "../base_loader_config.json"
 }

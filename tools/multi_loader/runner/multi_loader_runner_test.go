@@ -64,7 +64,7 @@ func TestUnpackExperiment(t *testing.T) {
 
 	t.Run("Unpack using TracesDir (Success)", func(t *testing.T) {
 		// Set TracesDir to test directory
-		multiLoader.MultiLoaderConfig.Studies[0].TracesDir = "./test_multi_trace"
+		multiLoader.MultiLoaderConfig.Studies[0].TracesDir = "../test_data"
 
 		for _, experiment := range multiLoader.MultiLoaderConfig.Studies {
 			subExperiments := multiLoader.unpackStudy(experiment)
@@ -76,7 +76,7 @@ func TestUnpackExperiment(t *testing.T) {
 
 	t.Run("Unpack using TracesDir (Failure: Incorrect Dir)", func(t *testing.T) {
 		expectFatal(t, func() {
-			multiLoader.MultiLoaderConfig.Studies[0].TracesDir = "./test_multi_trace_incorrect"
+			multiLoader.MultiLoaderConfig.Studies[0].TracesDir = "../test_data_incorrect"
 			for _, experiment := range multiLoader.MultiLoaderConfig.Studies {
 				_ = multiLoader.unpackStudy(experiment)
 			}
@@ -120,7 +120,7 @@ func TestPrepareExperiment(t *testing.T) {
 		Name: "example_1",
 		Config: map[string]interface{}{
 			"ExperimentDuration": 10,
-			"TracePath":          "./test_multi_trace/example_1_test",
+			"TracePath":          "../test_data/example_1_test",
 			"OutputPathPrefix":   "./test_output/example_1_test",
 		},
 	}
@@ -160,14 +160,14 @@ func TestMergeConfig(t *testing.T) {
 		Name: "example_1",
 		Config: map[string]interface{}{
 			"ExperimentDuration": 10,
-			"TracePath":          "./test_multi_trace/example_1_test",
+			"TracePath":          "../test_data/example_1_test",
 			"OutputPathPrefix":   "./test_output/example_1_test",
 		},
 	}
 	outputConfig := multiLoader.mergeConfigurations("./test_configs/test_base_loader_config.json", experiment)
 	// Check if the configurations are merged
-	if outputConfig.TracePath != "./test_multi_trace/example_1_test" {
-		t.Errorf("Expected TracePath to be './test_multi_trace/example_1_test', got %v", experiment.Config["TracePath"])
+	if outputConfig.TracePath != "../test_data/example_1_test" {
+		t.Errorf("Expected TracePath to be '../test_data/example_1_test', got %v", experiment.Config["TracePath"])
 	}
 	if outputConfig.OutputPathPrefix != "./test_output/example_1_test" {
 		t.Errorf("Expected OutputPathPrefix to be './test_output/example_1_test', got %v", experiment.Config["OutputPathPrefix"])
