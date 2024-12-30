@@ -71,19 +71,17 @@ jobs:
           fi
           
             # Check for errors in each output CSV file
-        for file in *_example_1_test/example_1_test_duration_1.csv \
-                    *_example_2_test/example_2_test_duration_1.csv \
-                    *_example_3_test/example_3_test_duration_1.csv; do
-          if [ ! -f "$file" ]; then
-            echo "File $file not found!"
-            exit 1
-          fi
+          for file in $(find . -name "*_example_1_test/example_1_test_duration_1.csv" -o -name "*_example_2_test/example_2_test_duration_1.csv" -o -name "*_example_3_test/example_3_test_duration_1.csv"); do
+            if [ ! -f "$file" ]; then
+              echo "File $file not found!"
+              exit 1
+            fi
 
-          if [ $(grep true "$file" | wc -l) -ne 0 ]; then
-            echo "Error found in $file"
-            exit 1
-          fi
-        done
+            if [ $(grep true "$file" | wc -l) -ne 0 ]; then
+              echo "Error found in $file"
+              exit 1
+            fi
+          done
 
       - name: Down
         if: ${{ always() }}
