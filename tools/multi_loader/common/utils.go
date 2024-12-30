@@ -25,6 +25,18 @@ func ReadMultiLoaderConfigurationFile(path string) types.MultiLoaderConfiguratio
 	return config
 }
 
+func WriteMultiLoaderConfigurationFile(config types.MultiLoaderConfiguration, path string) {
+	configByteValue, err := json.Marshal(config)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = os.WriteFile(path, configByteValue, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 func DeterminePlatformFromConfig(multiLoaderConfig types.MultiLoaderConfiguration) string {
 	// Determine platform
 	baseConfigByteValue, err := os.ReadFile(multiLoaderConfig.BaseConfigPath)
