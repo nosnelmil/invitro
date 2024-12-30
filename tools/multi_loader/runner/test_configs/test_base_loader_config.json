@@ -1,6 +1,6 @@
 {
   "Seed": 42,
-  "Platform": "Test",
+  "Platform": "Knative",
   "InvokeProtocol": "grpc",
   "YAMLSelector": "container",
   "EndpointPort": 80,
