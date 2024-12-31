@@ -25,3 +25,14 @@ type LoaderStudy struct {
 	PreScript     string `json:"PreScript"`
 	PostScript    string `json:"PostScript"`
 }
+
+type LoaderExperiment struct {
+	Name          string                 `json:"Name"`
+	Config        map[string]interface{} `json:"Config"`
+	OutputDir     string                 `json:"OutputDir"`
+	Verbosity     string                 `json:"Verbosity"`
+	IatGeneration bool                   `json:"IatGeneration"`
+	Generated     bool                   `json:"Generated"`
+	PreScript     string                 `json:"PreScript"`
+	PostScript    string                 `json:"PostScript"`
+}
