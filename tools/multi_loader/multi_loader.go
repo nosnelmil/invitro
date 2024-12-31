@@ -40,22 +40,21 @@ func initLogger() {
 
 func main() {
 	log.Info("Starting multiloader")
-	// Create multi loader driver
-	multiLoaderDriver, err := runner.NewMultiLoaderRunner(*multiLoaderConfigPath, *verbosity, *iatGeneration, *generated)
+	// Create multi loader runner
+	multiLoaderRunner, err := runner.NewMultiLoaderRunner(*multiLoaderConfigPath, *verbosity, *iatGeneration, *generated)
 	if err != nil {
 		log.Fatalf("Failed to create multi loader driver: %v", err)
 	}
 	// Dry run
-	multiLoaderDriver.RunDryRun()
+	multiLoaderRunner.RunDryRun()
 
 	// Check if dry run was successful
-	if !multiLoaderDriver.DryRunSuccess {
+	if !multiLoaderRunner.DryRunSuccess {
 		log.Fatal("Dry run failed. Exiting...")
 	}
 
 	// Actual run
-	log.Info("Running experiments")
-	multiLoaderDriver.RunActual()
+	multiLoaderRunner.RunActual()
 
 	// Finish
 	log.Info("All experiments completed")
