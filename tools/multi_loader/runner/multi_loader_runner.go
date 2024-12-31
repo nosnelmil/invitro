@@ -36,10 +36,11 @@ type MultiLoaderRunner struct {
 	Generated         bool
 	DryRun            bool
 	Platform          string
+	FailFast          bool
 }
 
 // init multi loader runner
-func NewMultiLoaderRunner(configPath string, verbosity string, iatGeneration bool, generated bool) (*MultiLoaderRunner, error) {
+func NewMultiLoaderRunner(configPath string, verbosity string, iatGeneration bool, generated bool, failFast bool) (*MultiLoaderRunner, error) {
 	multiLoaderConfig := ml_common.ReadMultiLoaderConfigurationFile(configPath)
 
 	// validate configuration
@@ -56,6 +57,7 @@ func NewMultiLoaderRunner(configPath string, verbosity string, iatGeneration boo
 		Generated:         generated,
 		DryRun:            false,
 		Platform:          platform,
+		FailFast:          failFast,
 	}
 
 	return &runner, nil
@@ -306,7 +308,8 @@ func (d *MultiLoaderRunner) runExperiment(experiment types.LoaderExperiment) err
 			log.Error(err)
 			log.Error("Experiment failed: ", experiment.Name)
 			logFile.WriteString("Experiment failed: " + experiment.Name + ". Error: " + err.Error() + "\n")
-			if i == 0 && !d.DryRun {
+			// Retry if not dry run and not fail fast
+			if i == 0 && !d.DryRun && !d.FailFast {
 				log.Info("Retrying experiment ", experiment.Name)
 				logFile.WriteString("==================================RETRYING==================================\n")
 				experiment.Verbosity = "debug"
