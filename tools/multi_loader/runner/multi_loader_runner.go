@@ -62,7 +62,7 @@ func NewMultiLoaderRunner(configPath string, verbosity string, iatGeneration boo
 }
 
 func (d *MultiLoaderRunner) RunDryRun() {
-	log.Info("Running dry run")
+	log.Info("Running dry runs")
 	d.DryRun = true
 	d.run()
 }
@@ -78,7 +78,7 @@ func (d *MultiLoaderRunner) run() {
 	common.RunScript(d.MultiLoaderConfig.PreScript)
 	// Iterate over studies and run them
 	for _, study := range d.MultiLoaderConfig.Studies {
-		log.Info("Setting up experiment: ", study.Name)
+		log.Debug("Setting up study: ", study.Name)
 		// Run pre script
 		common.RunScript(study.PreScript)
 
@@ -87,9 +87,7 @@ func (d *MultiLoaderRunner) run() {
 
 		// Iterate over sparse experiments, prepare and run
 		for _, experiment := range sparseExperiments {
-			if d.DryRun {
-				log.Info("Dry Running: ", experiment.Name)
-			}
+
 			// Prepare experiment: merge with base config, create output dir and write merged config to temp file
 			d.prepareExperiment(experiment)
 
@@ -100,7 +98,7 @@ func (d *MultiLoaderRunner) run() {
 
 			// Check if should continue this study
 			if err != nil {
-				log.Info("Experiment failed: ", experiment.Name, ". Skipping remaining experiments in study...")
+				log.Error("Experiment failed: ", experiment.Name, ". Skipping remaining experiments in study...")
 				break
 			}
 		}
@@ -119,19 +117,19 @@ func (d *MultiLoaderRunner) run() {
 * but first by duplicating the study to multiple studies with different values
 * in the config field. Those values will override the base loader config later
  */
-func (d *MultiLoaderRunner) unpackStudy(experiment types.LoaderStudy) []types.LoaderStudy {
-	log.Info("Unpacking experiment ", experiment.Name)
+func (d *MultiLoaderRunner) unpackStudy(study types.LoaderStudy) []types.LoaderStudy {
+	log.Debug("Unpacking study ", study.Name)
 	var experiments []types.LoaderStudy
 
 	// if user specified a trace directory
-	if experiment.TracesDir != "" {
-		experiments = d.unpackFromTraceDir(experiment)
+	if study.TracesDir != "" {
+		experiments = d.unpackFromTraceDir(study)
 		// user define trace format and values instead of directory
-	} else if experiment.TracesFormat != "" && len(experiment.TraceValues) > 0 {
-		experiments = d.unpackFromTraceValues(experiment)
+	} else if study.TracesFormat != "" && len(study.TraceValues) > 0 {
+		experiments = d.unpackFromTraceValues(study)
 	} else {
 		// Theres only one experiment in the study
-		experiments = d.unpackSingleExperiment(experiment)
+		experiments = d.unpackSingleExperiment(study)
 	}
 
 	return experiments
@@ -205,7 +203,7 @@ func (d *MultiLoaderRunner) duplicateStudy(study types.LoaderStudy, newFileName 
 }
 
 func (d *MultiLoaderRunner) addCommandFlags(study types.LoaderStudy) {
-	// Add flags to experiment config
+	// Add flags to study config
 	if study.Verbosity == "" {
 		study.Verbosity = d.Verbosity
 	}
@@ -221,7 +219,7 @@ func (d *MultiLoaderRunner) addCommandFlags(study types.LoaderStudy) {
 * Prepare experiment by merging with base config, creating output directory and writing experiment config to temp file
  */
 func (d *MultiLoaderRunner) prepareExperiment(experiment types.LoaderStudy) {
-	log.Info("Preparing ", experiment.Name)
+	log.Debug("Preparing ", experiment.Name)
 	// Merge base configs with experiment configs
 	experimentConfig := d.mergeConfigurations(d.MultiLoaderConfig.BaseConfigPath, experiment)
 
@@ -273,7 +271,11 @@ func (d *MultiLoaderRunner) writeExperimentConfigToTempFile(experimentConfig con
 }
 
 func (d *MultiLoaderRunner) runExperiment(experiment types.LoaderStudy) error {
-	log.Info("Running ", experiment.Name)
+	if d.DryRun {
+		log.Info("Dry running ", experiment.Name)
+	} else {
+		log.Info("Running ", experiment.Name)
+	}
 	log.Debug("Experiment configuration ", experiment.Config)
 
 	// Create the log file
@@ -306,7 +308,7 @@ func (d *MultiLoaderRunner) runExperiment(experiment types.LoaderStudy) error {
 			break
 		}
 	}
-	log.Info("Completed ", experiment.Name)
+	log.Debug("Completed ", experiment.Name)
 	return nil
 }
 
@@ -368,17 +370,25 @@ func (d *MultiLoaderRunner) logLoaderStdError(stdPipe io.ReadCloser, logFile *os
 		if m == "" {
 			continue
 		}
+
+		// if its go downloading logs, output to debug
+		if strings.Contains(m, "go: downloading") {
+			log.Debug(m)
+			continue
+		}
+
 		log.Error(m)
 	}
 }
 
 func (d *MultiLoaderRunner) performCleanup() {
-	log.Info("Runnning Cleanup")
+	log.Debug("Runnning Cleanup")
 	// Run make clean
 	if err := exec.Command("make", "clean").Run(); err != nil {
-		log.Error(err)
+		log.Error("Error occured while running cleanup", err)
 	}
-	log.Info("Cleanup completed")
 	// Remove temp file
 	os.Remove(EXPERIMENT_TEMP_CONFIG_PATH)
+
+	log.Debug("Cleanup completed")
 }

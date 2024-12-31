@@ -12,7 +12,7 @@ import (
 
 // Check general multi-loader configuration that applies to all platforms
 func CheckMultiLoaderConfig(multiLoaderConfig types.MultiLoaderConfiguration) {
-	log.Info("Checking multi-loader configuration")
+	log.Debug("Checking multi-loader configuration")
 	// Check if all paths are valid
 	common.CheckPath(multiLoaderConfig.BaseConfigPath)
 	// Check each study
@@ -42,7 +42,7 @@ func CheckMultiLoaderConfig(multiLoaderConfig types.MultiLoaderConfiguration) {
 			}
 		}
 	}
-	log.Info("All experiments configs are valid")
+	log.Debug("All experiments configs are valid")
 }
 
 func CheckCollectableMetrics(metrics string) {

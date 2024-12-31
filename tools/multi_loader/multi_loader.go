@@ -57,5 +57,5 @@ func main() {
 	multiLoaderRunner.RunActual()
 
 	// Finish
-	log.Info("All experiments completed")
+	log.Info("All studies completed")
 }
