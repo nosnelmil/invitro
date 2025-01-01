@@ -79,7 +79,7 @@ func (d *MultiLoaderRunner) run() {
 	// Run global prescript
 	common.RunScript(d.MultiLoaderConfig.PreScript)
 	// Iterate over studies and run them
-	for _, study := range d.MultiLoaderConfig.Studies {
+	for si, study := range d.MultiLoaderConfig.Studies {
 		log.Debug("Setting up study: ", study.Name)
 		// Run pre script
 		common.RunScript(study.PreScript)
@@ -88,7 +88,12 @@ func (d *MultiLoaderRunner) run() {
 		sparseExperiments := d.unpackStudy(study)
 
 		// Iterate over sparse experiments, prepare and run
-		for _, experiment := range sparseExperiments {
+		for ei, experiment := range sparseExperiments {
+			if d.DryRun {
+				log.Info(fmt.Sprintf("[Study %d/%d][Experiment %d/%d] Dry running %s", si+1, len(d.MultiLoaderConfig.Studies), ei+1, len(sparseExperiments), experiment.Name))
+			} else {
+				log.Info(fmt.Sprintf("[Study %d/%d][Experiment %d/%d] Running %s", si+1, len(d.MultiLoaderConfig.Studies), ei+1, len(sparseExperiments), experiment.Name))
+			}
 
 			// Prepare experiment: merge with base config, create output dir and write merged config to temp file
 			d.prepareExperiment(experiment)
@@ -287,11 +292,6 @@ func (d *MultiLoaderRunner) writeExperimentConfigToTempFile(experimentConfig con
 }
 
 func (d *MultiLoaderRunner) runExperiment(experiment types.LoaderExperiment) error {
-	if d.DryRun {
-		log.Info("Dry running ", experiment.Name)
-	} else {
-		log.Info("Running ", experiment.Name)
-	}
 	log.Debug("Experiment configuration ", experiment.Config)
 
 	// Create the log file
