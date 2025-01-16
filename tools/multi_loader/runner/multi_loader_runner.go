@@ -84,14 +84,14 @@ func (d *MultiLoaderRunner) run() {
 		common.RunScript(study.PreScript)
 
 		// Unpack study to a list of studies with different loader configs
-		sparseExperiments := d.unpackStudy(study)
+		experimentsPartialConfig := d.unpackStudy(study)
 
-		// Iterate over sparse experiments, prepare and run
-		for ei, experiment := range sparseExperiments {
+		// Iterate over experiments partial config, prepare by merging with base and run
+		for ei, experiment := range experimentsPartialConfig {
 			if d.DryRun {
-				log.Info(fmt.Sprintf("[Study %d/%d][Experiment %d/%d] Dry running %s", si+1, len(d.MultiLoaderConfig.Studies), ei+1, len(sparseExperiments), experiment.Name))
+				log.Info(fmt.Sprintf("[Study %d/%d][Experiment %d/%d] Dry running %s", si+1, len(d.MultiLoaderConfig.Studies), ei+1, len(experimentsPartialConfig), experiment.Name))
 			} else {
-				log.Info(fmt.Sprintf("[Study %d/%d][Experiment %d/%d] Running %s", si+1, len(d.MultiLoaderConfig.Studies), ei+1, len(sparseExperiments), experiment.Name))
+				log.Info(fmt.Sprintf("[Study %d/%d][Experiment %d/%d] Running %s", si+1, len(d.MultiLoaderConfig.Studies), ei+1, len(experimentsPartialConfig), experiment.Name))
 			}
 
 			// Prepare experiment: merge with base config, create output dir and write merged config to temp file
@@ -110,7 +110,7 @@ func (d *MultiLoaderRunner) run() {
 		}
 		// Run post script
 		common.RunScript(study.PostScript)
-		if len(sparseExperiments) > 1 && !d.DryRun {
+		if len(experimentsPartialConfig) > 1 && !d.DryRun {
 			log.Info("All experiments for ", study.Name, " completed")
 		}
 	}
