@@ -1,6 +1,6 @@
 # Multi-Loader
 
-A wrapper around loader to run multiple experiments at once with additional features like validation, dry-run, log collection
+A wrapper around loader to run multiple experiments in sequence with additional features like validation, dry-run, log collection
 
 ## Prerequisites
 As a wrapper around loader, multi-loader requires the initial cluster setup to be completed. See [vHive Loader to create a cluster](https://github.com/vhive-serverless/invitro/blob/main/docs/loader.md#create-a-cluster)
