@@ -24,7 +24,7 @@ const (
 	LOADER_PATH                 = "cmd/loader.go"
 	TIME_FORMAT                 = "Jan_02_1504"
 	EXPERIMENT_TEMP_CONFIG_PATH = "tools/multi_loader/current_running_config.json"
-	NUM_OF_RETRIES              = 2
+	NUM_OF_RETRIES              = 1
 )
 
 type MultiLoaderRunner struct {
@@ -301,31 +301,35 @@ func (d *MultiLoaderRunner) runExperiment(experiment types.LoaderExperiment) err
 	}
 	defer logFile.Close()
 
-	for i := 0; i < NUM_OF_RETRIES; i++ {
+	// Default number of tries
+	numTries := 1
+	// Should retry if not dry run and fail fast
+	if !d.DryRun && !d.FailFast {
+		numTries += NUM_OF_RETRIES
+	}
+
+	for i := 0; i < numTries; i++ {
 		// Run loader.go with experiment configs
 		if err := d.executeLoaderCommand(experiment, logFile); err != nil {
 			log.Error(err)
 			log.Error("Experiment failed: ", experiment.Name)
 			logFile.WriteString("Experiment failed: " + experiment.Name + ". Error: " + err.Error() + "\n")
-			// Retry if not dry run and not fail fast
-			if i == 0 && !d.DryRun && !d.FailFast {
+			// Log retry attmempt if necessary
+			if i == 0 {
 				log.Info("Retrying experiment ", experiment.Name)
 				logFile.WriteString("==================================RETRYING==================================\n")
 				experiment.Verbosity = "debug"
-			} else {
-				// Experiment failed set dry run flag to false
-				d.DryRunSuccess = false
-				log.Error("Check log file for more information: ", logFilePath)
-				// should not continue with experiment
-				return err
 			}
-			continue
 		} else {
-			break
+			// Experiment succeeded
+			log.Debug("Completed ", experiment.Name)
+			return nil
 		}
 	}
-	log.Debug("Completed ", experiment.Name)
-	return nil
+	// Experiment failed
+	d.DryRunSuccess = false
+	log.Error("Check log file for more information: ", logFilePath)
+	return err
 }
 
 func (d *MultiLoaderRunner) executeLoaderCommand(experiment types.LoaderExperiment, logFile *os.File) error {
