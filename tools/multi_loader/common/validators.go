@@ -2,7 +2,6 @@ package common
 
 import (
 	"path"
-	"slices"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -43,10 +42,4 @@ func CheckMultiLoaderConfig(multiLoaderConfig types.MultiLoaderConfiguration) {
 		}
 	}
 	log.Debug("All experiments configs are valid")
-}
-
-func CheckCollectableMetrics(metrics string) {
-	if !slices.Contains(ValidCollectableMetrics, metrics) {
-		log.Fatal("Invalid metrics ", metrics)
-	}
 }

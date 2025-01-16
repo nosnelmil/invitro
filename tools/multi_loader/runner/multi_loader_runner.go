@@ -29,7 +29,6 @@ const (
 
 type MultiLoaderRunner struct {
 	MultiLoaderConfig types.MultiLoaderConfiguration
-	NodeGroup         types.NodeGroup
 	DryRunSuccess     bool
 	Verbosity         string
 	IatGeneration     bool
