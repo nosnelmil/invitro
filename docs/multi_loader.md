@@ -17,7 +17,7 @@ As a wrapper around loader, multi-loader requires the initial cluster setup to b
 ### LoaderStudy
 | Parameter name        | Data type              | Possible values               | Default value | Description                                                        |
 |-----------------------|------------------------|-------------------------------|---------------|--------------------------------------------------------------------|
-| Config                | map[string]interface{} | Any field in [LoaderConfiguration](https://github.com/vhive-serverless/invitro/blob/main/docs/configuration.md#loader-configuration-file-format) | N/A           | The configuration for each loader experiment which overrides configurations in baseLoaderConfig                      |
+| Config                | map[string]interface{} | Any field in [LoaderConfiguration](https://github.com/vhive-serverless/invitro/blob/main/docs/configuration.md#loader-configuration-file-format) except `Platform `| N/A           | The configuration for each loader experiment which overrides configurations in baseLoaderConfig                      |
 | Name                  | string                 | N/A                           | N/A           | The name of the loader experiment                                  |
 | TracesDir             | string                 | N/A                           | N/A           | Directory containing the traces for the experiment                 |
 | TracesFormat          | string                 | "data/traces/example_{}"      | N/A           | Format of the trace files **The format string "{}" is required** |
@@ -43,6 +43,7 @@ As a wrapper around loader, multi-loader requires the initial cluster setup to b
 > The `Config` field follows the same structure as the [LoaderConfiguration](https://github.com/vhive-serverless/invitro/blob/main/docs/configuration.md#loader-configuration-file-format). 
 > Any field defined in `Config` will override the corresponding value from the configuration in `BaseConfigPath`, but only for that specific experiment. 
 > For example, if `BaseConfigPath` has `ExperimentDuration` set to 5 minutes, and you define `ExperimentDuration` as 10 minutes in `Config`, that particular experiment will run for 10 minutes instead.
+> The `Platform` field must not be overridden and should only defined in the base config.
 
 ## Command Flags
 
