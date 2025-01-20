@@ -334,17 +334,19 @@ func (d *MultiLoaderRunner) runExperiment(experiment types.LoaderExperiment) err
 	}
 
 	for i := 0; i < numTries; i++ {
+		// Log retry attmempt if necessary
+		if i != 0 {
+			log.Info("Retrying experiment ", experiment.Name)
+			logFile.WriteString("==================================RETRYING==================================\n")
+		}
 		// Run loader.go with experiment configs
 		if err := d.executeLoaderCommand(experiment, logFile); err != nil {
 			log.Error(err)
 			log.Error("Experiment failed: ", experiment.Name)
 			logFile.WriteString("Experiment failed: " + experiment.Name + ". Error: " + err.Error() + "\n")
-			// Log retry attmempt if necessary
-			if i == 0 {
-				log.Info("Retrying experiment ", experiment.Name)
-				logFile.WriteString("==================================RETRYING==================================\n")
-				experiment.Verbosity = "debug"
-			}
+
+			// Update experiment verbosity to debug
+			experiment.Verbosity = "debug"
 		} else {
 			// Experiment succeeded
 			log.Debug("Completed ", experiment.Name)
