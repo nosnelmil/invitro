@@ -29,7 +29,9 @@ As a wrapper around loader, multi-loader requires the initial cluster setup to b
 | PreScript             | string                 | any bash Command              | ""           | (Optional) Local script that runs this specific experiment |
 | PostScript            | string                 | any bash Command              | ""           | (Optional) Local script that runs this specific experiment |
 
-> **_Important_**: Only one of the following is required:
+> **_Important_**: 
+>
+> Only one of the following is required:
 > 1. `TracesDir`, or
 > 2. `TracesFormat` and `TraceValues`, or
 > 3. `TracePath` within the `LoaderExperiment`'s `Config` field
@@ -38,10 +40,13 @@ As a wrapper around loader, multi-loader requires the initial cluster setup to b
 > 1. `TracesDir`,  
 > 2. `TracesFormat` and `TraceValues`,  
 > 3. `TracePath`
-> The `Platform` field must not be overridden and should only defined in the base config.
-> The `IatGeneration` and `Generated` fields might not work as expected for multiple experiments due to limitations of loader.
+>
+> The `Platform` field must not be overridden and should only be defined in the base config.
+>
+> The `IatGeneration` and `Generated` fields may not function as expected when handling multiple experiments due to limitations in the loader implementation.
 
 > **_Note_**: 
+>
 > The `Config` field follows the same structure as the [LoaderConfiguration](https://github.com/vhive-serverless/invitro/blob/main/docs/configuration.md#loader-configuration-file-format). 
 > Any field defined in `Config` will override the corresponding value from the configuration in `BaseConfigPath`, but only for that specific experiment. 
 > For example, if `BaseConfigPath` has `ExperimentDuration` set to 5 minutes, and you define `ExperimentDuration` as 10 minutes in `Config`, that particular experiment will run for 10 minutes instead.
