@@ -438,10 +438,6 @@ func (d *MultiLoaderRunner) logLoaderStdError(stdPipe io.ReadCloser, logFile *os
 **/
 func (d *MultiLoaderRunner) performCleanup() {
 	log.Debug("Runnning Cleanup")
-	// Run make clean
-	if err := exec.Command("make", "clean").Run(); err != nil {
-		log.Error("Error occured while running cleanup", err)
-	}
 	// Remove temp file
 	os.Remove(EXPERIMENT_TEMP_CONFIG_PATH)
 
