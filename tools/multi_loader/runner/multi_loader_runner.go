@@ -31,8 +31,6 @@ type MultiLoaderRunner struct {
 	MultiLoaderConfig types.MultiLoaderConfiguration
 	DryRunSuccess     bool
 	Verbosity         string
-	IatGeneration     bool
-	Generated         bool
 	DryRun            bool
 	Platform          string
 	FailFast          bool
@@ -41,7 +39,7 @@ type MultiLoaderRunner struct {
 /**
 * Initialise a new MultiLoaderRunner
 **/
-func NewMultiLoaderRunner(configPath string, verbosity string, iatGeneration bool, generated bool, failFast bool) (*MultiLoaderRunner, error) {
+func NewMultiLoaderRunner(configPath string, verbosity string, failFast bool) (*MultiLoaderRunner, error) {
 	multiLoaderConfig := ml_common.ReadMultiLoaderConfigurationFile(configPath)
 
 	// Validate configuration
@@ -54,8 +52,6 @@ func NewMultiLoaderRunner(configPath string, verbosity string, iatGeneration boo
 		MultiLoaderConfig: multiLoaderConfig,
 		DryRunSuccess:     true,
 		Verbosity:         verbosity,
-		IatGeneration:     iatGeneration,
-		Generated:         generated,
 		DryRun:            false,
 		Platform:          platform,
 		FailFast:          failFast,
@@ -247,10 +243,10 @@ func (d *MultiLoaderRunner) addCommandFlagsToExperiment(experiment types.LoaderE
 		experiment.Verbosity = d.Verbosity
 	}
 	if !experiment.IatGeneration {
-		experiment.IatGeneration = d.IatGeneration
+		experiment.IatGeneration = d.MultiLoaderConfig.IatGeneration
 	}
 	if !experiment.Generated {
-		experiment.Generated = d.Generated
+		experiment.Generated = d.MultiLoaderConfig.Generated
 	}
 }
 
