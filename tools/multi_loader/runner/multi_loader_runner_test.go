@@ -180,6 +180,13 @@ func TestMultiConfigValidator(t *testing.T) {
 			ml_common.CheckMultiLoaderConfig(multiLoader.MultiLoaderConfig)
 		})
 	})
+
+	t.Run("CheckMultiLoaderConfig (Failure: Missing OutputDir)", func(t *testing.T) {
+		expectFatal(t, func() {
+			multiLoader.MultiLoaderConfig.Studies[0].Config["Platform"] = "Other Platform"
+			ml_common.CheckMultiLoaderConfig(multiLoader.MultiLoaderConfig)
+		})
+	})
 }
 
 func setup() (func(), MultiLoaderRunner) {

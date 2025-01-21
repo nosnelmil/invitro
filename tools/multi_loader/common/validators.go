@@ -18,7 +18,18 @@ func CheckMultiLoaderConfig(multiLoaderConfig types.MultiLoaderConfiguration) {
 	if len(multiLoaderConfig.Studies) == 0 {
 		log.Fatal("No study found in configuration file")
 	}
+	platform := DeterminePlatformFromConfig(multiLoaderConfig)
+	if platform == "" {
+		log.Fatal("Platform not found in base configuration")
+	}
+
 	for _, study := range multiLoaderConfig.Studies {
+		// Check if platform is defined, if so check if consistent with base config
+		if _, ok := study.Config["Platform"]; ok {
+			if study.Config["Platform"] != platform {
+				log.Fatal("Platform in study ", study.Name, " is inconsistent with base configuration's platform ", platform)
+			}
+		}
 		// Check trace directory
 		// if configs does not have TracePath or OutputPathPreix, either TracesDir or (TracesFormat and TraceValues) should be defined along with OutputDir
 		if study.TracesDir == "" && (study.TracesFormat == "" || len(study.TraceValues) == 0) {
