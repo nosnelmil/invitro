@@ -50,3 +50,34 @@ func DeterminePlatformFromConfig(multiLoaderConfig types.MultiLoaderConfiguratio
 	}
 	return loaderConfig.Platform
 }
+
+func NextProduct(a []int, r int) func() []int {
+	p := make([]int, r)
+	x := make([]int, len(p))
+	return func() []int {
+		p := p[:len(x)]
+		for i, xi := range x {
+			p[i] = a[xi]
+		}
+		for i := len(x) - 1; i >= 0; i-- {
+			x[i]++
+			if x[i] < len(a) {
+				break
+			}
+			x[i] = 0
+			if i <= 0 {
+				x = x[0:0]
+				break
+			}
+		}
+		return p
+	}
+}
+
+func IntArrToString(arr []int) string {
+	str := ""
+	for _, val := range arr {
+		str += string(val)
+	}
+	return str
+}

@@ -1,5 +1,7 @@
 package types
 
+import "errors"
+
 type MultiLoaderConfiguration struct {
 	Studies        []LoaderStudy `json:"Studies"`
 	BaseConfigPath string        `json:"BaseConfigPath"`
@@ -26,6 +28,9 @@ type LoaderStudy struct {
 	Generated     bool   `json:"Generated"`
 	PreScript     string `json:"PreScript"`
 	PostScript    string `json:"PostScript"`
+
+	SweepOptions []SweepOptions `json:"SweepOptions"`
+	SweepType    SweepType      `json:"SweepType"`
 }
 
 type LoaderExperiment struct {
@@ -37,4 +42,35 @@ type LoaderExperiment struct {
 	Generated     bool                   `json:"Generated"`
 	PreScript     string                 `json:"PreScript"`
 	PostScript    string                 `json:"PostScript"`
+}
+
+type SweepOptions struct {
+	Field  string        `json:"Field"`
+	Values []interface{} `json:"Values"`
+}
+
+func (so *SweepOptions) Validate() error {
+	if so.Field == "" {
+		return errors.New("field should not be empty")
+	}
+	if len(so.Values) == 0 {
+		return errors.New(so.Field + " missing sweep values")
+	}
+	return nil
+}
+
+type SweepType string
+
+const (
+	GridSweep   SweepType = "Grid"
+	LinearSweep SweepType = "Linear"
+)
+
+func (s SweepType) Validate() error {
+	switch s {
+	case GridSweep, LinearSweep:
+		return nil
+	default:
+		return errors.New("invalid SweepType")
+	}
 }
