@@ -281,9 +281,9 @@ func (d *MultiLoaderRunner) unpackGridSweep(study types.LoaderStudy, experiment 
 	numOfSweepOptions := len(study.Sweep)
 	optionsLength := make([]int, numOfSweepOptions)
 	for i, sweepOption := range study.Sweep {
-		optionsLength[i] = len(sweepOption.Values)
+		optionsLength[i] = len(sweepOption.Values) - 1
 	}
-	np := ml_common.NextProduct(optionsLength)
+	np := ml_common.NextCProduct(optionsLength)
 	for {
 		indices := np()
 		if len(indices) == 0 {

@@ -6,7 +6,7 @@ import (
 
 func TestNextProduct(t *testing.T) {
 	ints := []int{3, 1, 2}
-	nextProduct := NextProduct(ints)
+	nextProduct := NextCProduct(ints)
 	expectedArrs := [][]int{
 		{0, 0, 0},
 		{0, 0, 1},
