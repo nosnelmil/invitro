@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/json"
 	"os"
+	"strconv"
 
 	log "github.com/sirupsen/logrus"
 
@@ -51,33 +52,44 @@ func DeterminePlatformFromConfig(multiLoaderConfig types.MultiLoaderConfiguratio
 	return loaderConfig.Platform
 }
 
-func NextProduct(a []int, r int) func() []int {
-	p := make([]int, r)
-	x := make([]int, len(p))
+/**
+ * NextCProduct generates the next Cartesian product of the given limits
+ **/
+func NextCProduct(limits []int) func() []int {
+	permutations := make([]int, len(limits))
+	indices := make([]int, len(limits))
+	done := false
+
 	return func() []int {
-		p := p[:len(x)]
-		for i, xi := range x {
-			p[i] = a[xi]
+		// Check if there are more permutations
+		if done {
+			return nil
 		}
-		for i := len(x) - 1; i >= 0; i-- {
-			x[i]++
-			if x[i] < len(a) {
+
+		// Generate the current permutation
+		copy(permutations, indices)
+
+		// Generate the next permutation
+		for i := len(indices) - 1; i >= 0; i-- {
+			indices[i]++
+			if indices[i] <= limits[i] {
 				break
 			}
-			x[i] = 0
-			if i <= 0 {
-				x = x[0:0]
-				break
+			indices[i] = 0
+			if i == 0 {
+				// All permutations have been generated
+				done = true
 			}
 		}
-		return p
+
+		return permutations
 	}
 }
 
 func IntArrToString(arr []int) string {
 	str := ""
 	for _, val := range arr {
-		str += string(val)
+		str += strconv.Itoa(val)
 	}
 	return str
 }
