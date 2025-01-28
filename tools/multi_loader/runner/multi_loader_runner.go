@@ -254,12 +254,12 @@ func (d *MultiLoaderRunner) addCommandFlagsToExperiment(experiment types.LoaderE
 }
 
 func (d *MultiLoaderRunner) unpackSweepOptions(study types.LoaderStudy, experiment types.LoaderExperiment) []types.LoaderExperiment {
-	if len(study.SweepOptions) == 0 {
+	if len(study.Sweep) == 0 {
 		log.Debug("No sweep options provided")
 		return []types.LoaderExperiment{experiment}
 	}
 	// validate each sweep option
-	for _, sweepOption := range study.SweepOptions {
+	for _, sweepOption := range study.Sweep {
 		if err := sweepOption.Validate(); err != nil {
 			log.Fatal(err)
 		}
@@ -278,9 +278,9 @@ func (d *MultiLoaderRunner) unpackSweepOptions(study types.LoaderStudy, experime
 
 func (d *MultiLoaderRunner) unpackGridSweep(study types.LoaderStudy, experiment types.LoaderExperiment) []types.LoaderExperiment {
 	var experiments []types.LoaderExperiment
-	numOfSweepOptions := len(study.SweepOptions)
+	numOfSweepOptions := len(study.Sweep)
 	optionsLength := make([]int, numOfSweepOptions)
-	for i, sweepOption := range study.SweepOptions {
+	for i, sweepOption := range study.Sweep {
 		optionsLength[i] = len(sweepOption.Values)
 	}
 	np := ml_common.NextProduct(optionsLength, numOfSweepOptions)
@@ -296,7 +296,7 @@ func (d *MultiLoaderRunner) unpackGridSweep(study types.LoaderStudy, experiment 
 		newExperiment.Name = experiment.Name + "_sweep_" + ml_common.IntArrToString(indices)
 		newExperiment.Config["OutputPathPrefix"] = path.Join(newExperiment.Config["OutputPathPrefix"].(string), ml_common.IntArrToString(indices))
 		for i, index := range indices {
-			newExperiment.Config[study.SweepOptions[i].Field] = study.SweepOptions[i].Values[index]
+			newExperiment.Config[study.Sweep[i].Field] = study.Sweep[i].Values[index]
 		}
 		experiments = append(experiments, newExperiment)
 	}
@@ -305,13 +305,13 @@ func (d *MultiLoaderRunner) unpackGridSweep(study types.LoaderStudy, experiment 
 
 func (d *MultiLoaderRunner) unpackLinearSweep(study types.LoaderStudy, experiment types.LoaderExperiment) []types.LoaderExperiment {
 	var experiments []types.LoaderExperiment
-	numOfSweepOptions := len(study.SweepOptions)
+	numOfSweepOptions := len(study.Sweep)
 
 	// Validate that all options have the same number of values
-	numOfSweepValues := len(study.SweepOptions[0].Values)
+	numOfSweepValues := len(study.Sweep[0].Values)
 
 	for i := 1; i < numOfSweepOptions; i++ {
-		if len(study.SweepOptions[i].Values) != numOfSweepValues {
+		if len(study.Sweep[i].Values) != numOfSweepValues {
 			log.Fatal("All sweep options must have the same number of values")
 		}
 	}
@@ -326,7 +326,7 @@ func (d *MultiLoaderRunner) unpackLinearSweep(study types.LoaderStudy, experimen
 		newExperiment.Config["OutputPathPrefix"] = path.Join(newExperiment.Config["OutputPathPrefix"].(string), strings.Repeat(strconv.Itoa(i), numOfSweepOptions))
 
 		for j := 0; j < numOfSweepOptions; j++ {
-			newExperiment.Config[study.SweepOptions[j].Field] = study.SweepOptions[j].Values[i]
+			newExperiment.Config[study.Sweep[j].Field] = study.Sweep[j].Values[i]
 		}
 		experiments = append(experiments, newExperiment)
 	}
