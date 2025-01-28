@@ -29,8 +29,8 @@ type LoaderStudy struct {
 	PreScript     string `json:"PreScript"`
 	PostScript    string `json:"PostScript"`
 
-	SweepOptions []SweepOptions `json:"SweepOptions"`
-	SweepType    SweepType      `json:"SweepType"`
+	Sweep     []SweepOptions `json:"SweepOptions"`
+	SweepType SweepType      `json:"SweepType"`
 }
 
 type LoaderExperiment struct {
