@@ -266,9 +266,9 @@ func (d *MultiLoaderRunner) unpackSweepOptions(study types.LoaderStudy, experime
 	}
 
 	switch study.SweepType {
-	case types.GridSweep:
+	case ml_common.GridSweepType:
 		return d.unpackGridSweep(study, experiment)
-	case types.LinearSweep:
+	case ml_common.LinearSweepType:
 		return d.unpackLinearSweep(study, experiment)
 	default:
 		log.Fatal("Invalid sweep type")

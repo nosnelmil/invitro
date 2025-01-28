@@ -30,7 +30,7 @@ type LoaderStudy struct {
 	PostScript    string `json:"PostScript"`
 
 	Sweep     []SweepOptions `json:"Sweep"`
-	SweepType SweepType      `json:"SweepType"`
+	SweepType string         `json:"SweepType"`
 }
 
 type LoaderExperiment struct {
@@ -57,20 +57,4 @@ func (so *SweepOptions) Validate() error {
 		return errors.New(so.Field + " missing sweep values")
 	}
 	return nil
-}
-
-type SweepType string
-
-const (
-	GridSweep   SweepType = "Grid"
-	LinearSweep SweepType = "Linear"
-)
-
-func (s SweepType) Validate() error {
-	switch s {
-	case GridSweep, LinearSweep:
-		return nil
-	default:
-		return errors.New("invalid SweepType")
-	}
 }
