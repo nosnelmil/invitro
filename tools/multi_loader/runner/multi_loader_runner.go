@@ -294,7 +294,10 @@ func (d *MultiLoaderRunner) unpackGridSweep(study types.LoaderStudy, experiment 
 			log.Fatal("Error when deep copying experiment", err)
 		}
 		newExperiment.Name = experiment.Name + "_sweep_" + ml_common.IntArrToString(indices)
-		newExperiment.Config["OutputPathPrefix"] = newExperiment.Config["OutputPathPrefix"].(string) + "_sweep_" + ml_common.IntArrToString(indices)
+		paths := ml_common.SplitPath(experiment.Config["OutputPathPrefix"].(string))
+		// update the last two paths with the sweep indices
+		paths[len(paths)-2] = paths[len(paths)-2] + "_sweep_" + ml_common.IntArrToString(indices)
+		paths[len(paths)-1] = paths[len(paths)-1] + "_sweep_" + ml_common.IntArrToString(indices)
 		for i, index := range indices {
 			newExperiment.Config[study.Sweep[i].Field] = study.Sweep[i].Values[index]
 		}
@@ -323,7 +326,11 @@ func (d *MultiLoaderRunner) unpackLinearSweep(study types.LoaderStudy, experimen
 			log.Fatal("Error when deep copying experiment", err)
 		}
 		newExperiment.Name = experiment.Name + "_sweep_" + strings.Repeat(strconv.Itoa(i), numOfSweepOptions)
-		newExperiment.Config["OutputPathPrefix"] = newExperiment.Config["OutputPathPrefix"].(string) + "_sweep_" + strings.Repeat(strconv.Itoa(i), numOfSweepOptions)
+		// Update output path prefix
+		paths := ml_common.SplitPath(experiment.Config["OutputPathPrefix"].(string))
+		// update the last two paths with the sweep indices
+		paths[len(paths)-2] = paths[len(paths)-2] + "_sweep_" + strings.Repeat(strconv.Itoa(i), numOfSweepOptions)
+		paths[len(paths)-1] = paths[len(paths)-1] + "_sweep_" + strings.Repeat(strconv.Itoa(i), numOfSweepOptions)
 
 		for j := 0; j < numOfSweepOptions; j++ {
 			newExperiment.Config[study.Sweep[j].Field] = study.Sweep[j].Values[i]

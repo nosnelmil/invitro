@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	log "github.com/sirupsen/logrus"
@@ -92,4 +93,12 @@ func IntArrToString(arr []int) string {
 		str += strconv.Itoa(val)
 	}
 	return str
+}
+
+func SplitPath(path string) []string {
+	dir, last := filepath.Split(path)
+	if dir == "" {
+		return []string{last}
+	}
+	return append(SplitPath(filepath.Clean(dir)), last)
 }
