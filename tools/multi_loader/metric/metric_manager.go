@@ -78,7 +78,7 @@ func (m *MetricManager) ResetTOP() {
 	}
 	// Reset top process
 	var wg sync.WaitGroup
-	for _, node := range m.uniqueNodeList() {
+	for _, node := range m.getUniqueNodeList() {
 		wg.Add(1)
 		go func(node string) {
 			defer wg.Done()
@@ -126,7 +126,7 @@ func (m *MetricManager) collectTOPMetric() {
 		log.Fatal(err)
 	}
 	var wg sync.WaitGroup
-	for _, node := range m.uniqueNodeList() {
+	for _, node := range m.getUniqueNodeList() {
 		wg.Add(1)
 		go func(node string) {
 			defer wg.Done()
@@ -236,20 +236,16 @@ func (m *MetricManager) fetchPrometheusSnapshot(maxAttempts int) (types.Promethe
 /**
 * Helper function to get unique node list
 **/
-func (m *MetricManager) uniqueNodeList() []string {
-	uniqueNodes := make(map[string]bool)
-	uniqueNodes[m.multiLoaderConfig.MasterNode] = true
-	uniqueNodes[m.multiLoaderConfig.LoaderNode] = true
-	uniqueNodes[m.multiLoaderConfig.AutoScalerNode] = true
-	uniqueNodes[m.multiLoaderConfig.ActivatorNode] = true
-	for _, node := range m.multiLoaderConfig.WorkerNodes {
-		uniqueNodes[node] = true
+func (m *MetricManager) getUniqueNodeList() []string {
+	cmd := exec.Command("sh", "-c", "kubectl get nodes --show-labels --no-headers -o wide | awk '{print $6}'")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		log.Fatal(err)
 	}
-	nodes := make([]string, 0, len(uniqueNodes))
-	for node := range uniqueNodes {
-		nodes = append(nodes, strings.TrimSpace(node))
+	nodes := strings.Split(string(out), "\n")
+	for i := range nodes {
+		nodes[i] = strings.TrimSpace(nodes[i])
 	}
-	log.Trace("Unique nodes: ", nodes)
 	return nodes
 }
 
