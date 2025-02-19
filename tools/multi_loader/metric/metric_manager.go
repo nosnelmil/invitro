@@ -242,12 +242,8 @@ func (m *MetricManager) getUniqueNodeList() []string {
 	if err != nil {
 		log.Fatal(err)
 	}
-	nodes := strings.Split(string(out), "\n")
-	for i := range nodes {
-		nodes[i] = strings.TrimSpace(nodes[i])
-	}
-	log.Debug("multi_loader_config: ", m.multiLoaderConfig)
-	ml_common.RunRemoteCommand("172.18.0.2", "echo 'test'")
+	nodes := strings.Fields(string(out))
+
 	log.Debug("Unique Node List: ", nodes)
 	return nodes
 }
