@@ -5,7 +5,7 @@ on:
     - cron: "0 9 * * 1"
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, feature/test]
   pull_request:
     branches: [main]
 
@@ -110,7 +110,7 @@ jobs:
           echo "multi_loader_config.json modified successfully"
 
       - name: Build and run multi-loader
-        run: go run tools/multi_loader/multi_loader.go --multiLoaderConfigPath tools/multi_loader/multi_loader_config.json
+        run: go run tools/multi_loader/multi_loader.go --verbosity=debug --multiLoaderConfigPath tools/multi_loader/multi_loader_config.json
   
       - name: Check multi_loader output
         run: |
