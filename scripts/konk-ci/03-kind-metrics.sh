@@ -46,7 +46,7 @@ helm install \
 
 # Configure kubectl config for non-root user
 docker exec knative-control-plane sh -c "mkdir -p /home/$(whoami)/.kube"
-docker exec knative-control-plane sh -c "cp /etc/kubernetes/admin.conf /home/$(whoami)/.kube"
+docker exec knative-control-plane sh -c "cp /etc/kubernetes/admin.conf /home/$(whoami)/.kube/config"
 docker exec knative-control-plane sh -c "echo 'export KUBECONFIG=/home/$(whoami)/.kube/config' >> /home/$(whoami)/.bashrc"
 docker exec knative-control-plane sh -c "sudo chown $(id -u):$(id -g) /home/$(whoami)/.kube/config"
 
