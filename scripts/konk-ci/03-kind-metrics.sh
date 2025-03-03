@@ -48,7 +48,7 @@ helm install \
 docker exec knative-control-plane sh -c "mkdir -p /home/$(whoami)/.kube"
 docker exec knative-control-plane sh -c "cp /etc/kubernetes/admin.conf /home/$(whoami)/.kube/config"
 docker exec knative-control-plane sh -c "echo 'export KUBECONFIG=/home/$(whoami)/.kube/config' >> /home/$(whoami)/.bashrc"
-docker exec knative-control-plane sh -c "sudo chown $(id -u):$(id -g) /home/$(whoami)/.kube/config"
+docker exec knative-control-plane sh -c "sudo chown $(whoami):$(whoami) /home/$(whoami)/.kube/config"
 
 # wait for pods to be ready
 i=0
