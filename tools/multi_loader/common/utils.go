@@ -2,6 +2,7 @@ package common
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -194,4 +195,16 @@ func CopyRemoteFile(remoteNode, src string, dest string) error {
 		log.Debug(string(out))
 	}
 	return nil
+}
+
+func DecompressGZFile(filePath string) (string, error) {
+	if !strings.HasSuffix(filePath, ".gz") {
+		return "", errors.New("incorrect file type received")
+	}
+	_, err := exec.Command(fmt.Sprintf("gunzip %s", filePath)).CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("failed to decompress gzip file: %s. %s", filePath, err)
+	}
+	newFileName, _ := strings.CutSuffix(filePath, ".gz")
+	return newFileName, nil
 }
