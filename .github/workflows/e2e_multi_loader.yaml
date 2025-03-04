@@ -137,7 +137,7 @@ jobs:
           fi
 
           # Check if advanced logs output are present
-          # in data/out/multi-test/test-experiment/*_example_1_test/, there should be folders called ["top", "autoscaler", "activator", "prometheus_snapshot"] and each folder should have at least one file
+          ## in data/out/multi-test/test-experiment/*_example_1_test/, there should be folders called ["top", "prometheus_snapshot"] and each folder should have at least one file
           for metric in top autoscaler activator prometheus_snapshot; do
             folder="data/out/multi-test/test-experiment/*_example_1_test/$metric"
             if [ ! -d $folder ]; then
@@ -150,6 +150,9 @@ jobs:
               exit 1
             fi
           done
+
+          ## there should be consolidated log files for ["activator", "autoscaler"]
+          
           echo "Advanced logs output present, found files for activators, autoscaler, top and prometheus"
 
           echo "No errors found in output files"
