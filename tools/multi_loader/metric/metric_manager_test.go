@@ -22,6 +22,7 @@ func TestLogConsolidation(t *testing.T) {
 		podName := "test"
 		metricManager.startTime = startTime
 		logDir := "./logs"
+		outputDir := "./"
 		logData := []string{"line1", "line2", "line3"}
 		logFileName := []string{"0.log", "11.log", "12.log"}
 		// create log dir
@@ -57,18 +58,24 @@ func TestLogConsolidation(t *testing.T) {
 		}
 		f.Close()
 
-		metricManager.consolidateLogs(podName, logDir)
-		files, _ := os.ReadDir(logDir)
+		metricManager.consolidateLogs(podName, logDir, outputDir)
+		files, _ := os.ReadDir(outputDir)
 		// logs from 0.log should not be included
 		// should contain only line2 and line3 from 11.log
 		// should contain all logs from 12.log
 		expectedLines := []string{"11.log_line2", "11.log_line3", "12.log_line1", "12.log_line2", "12.log_line3"}
 
-		// should only have one file after consolidation
-		assert.True(t, len(files) == 1)
-		assert.True(t, files[0].Name() == "knative-serving_test.log")
+		// check if consolidated file is present
+		containConsolidatedFile := false
+		for _, file := range files {
+			if file.Name() == "knative-serving_test.log" {
+				containConsolidatedFile = true
+			}
+		}
+		assert.True(t, containConsolidatedFile)
 		// check file content
-		content, err := os.ReadFile(path.Join(logDir, files[0].Name()))
+		content, err := os.ReadFile(path.Join(outputDir, "knative-serving_test.log"))
+		defer os.Remove(path.Join(outputDir, "knative-serving_test.log"))
 		if err != nil {
 			assert.Fail(t, err.Error())
 		}

@@ -59,11 +59,11 @@ func (m *MetricManager) CollectMetrics() {
 	}
 
 	if m.shouldCollect(ml_common.AutoScaler) {
-		m.collectPodLogs(m.multiLoaderConfig.AutoScalerNode, ml_common.AutoScalerPod.String(), ACTIVATOR_DIR_NAME)
+		m.collectPodLogs(m.multiLoaderConfig.AutoScalerNode, ml_common.AutoScalerPod.String())
 	}
 
 	if m.shouldCollect(ml_common.Activator) {
-		m.collectPodLogs(m.multiLoaderConfig.ActivatorNode, ml_common.ActivatorPod.String(), AUTOSCALER_DIR_NAME)
+		m.collectPodLogs(m.multiLoaderConfig.ActivatorNode, ml_common.ActivatorPod.String())
 	}
 
 	if m.shouldCollect(ml_common.Prometheus) {
@@ -169,32 +169,32 @@ func (m *MetricManager) collectTOPMetric() {
 /**
 * Collects logs from a specific pod
 **/
-func (m *MetricManager) collectPodLogs(podIP string, podName string, outputDirName string) {
+func (m *MetricManager) collectPodLogs(podIP string, podName string) {
 	log.Debugf("Collecting %s logs from %s", podName, podIP)
-	outputDir := path.Join(m.outputDir, outputDirName)
-	err := os.MkdirAll(outputDir, 0755)
+	logDir := path.Join(m.outputDir, podName)
+	err := os.MkdirAll(logDir, 0755)
 	if err != nil {
 		log.Fatal(err)
 	}
 	// Retrieve logs
-	err = ml_common.CopyRemoteFile(m.multiLoaderConfig.ActivatorNode, fmt.Sprintf("/var/log/pods/knative-serving_%s-*/*/*", podName), outputDir)
+	err = ml_common.CopyRemoteFile(m.multiLoaderConfig.ActivatorNode, fmt.Sprintf("/var/log/pods/knative-serving_%s-*/*/*", podName), logDir)
 	if err != nil {
 		log.Fatal("Failed to copy activator logs from node: ", m.multiLoaderConfig.ActivatorNode, err)
 	}
 	// Check if output dir contains anything
-	files, err := os.ReadDir(outputDir)
+	files, err := os.ReadDir(logDir)
 	if err != nil {
-		log.Fatal("Unexpected error. Failed to read directory ", outputDir)
+		log.Fatal("Unexpected error. Failed to read directory ", logDir)
 	}
 	if len(files) == 0 {
-		log.Warnf("No logs were found for pod %s in directory %s", podName, outputDir)
+		log.Warnf("No logs were found for pod %s in directory %s", podName, logDir)
 	} else {
-		log.Debugf("Successfully retrieved %d logs for pod %s in directory %s", len(files), podName, outputDir)
+		log.Debugf("Successfully retrieved %d logs for pod %s in directory %s", len(files), podName, logDir)
 	}
-	m.consolidateLogs(podName, outputDir)
+	m.consolidateLogs(podName, logDir, m.outputDir)
 }
 
-func (m *MetricManager) consolidateLogs(podName string, logDir string) {
+func (m *MetricManager) consolidateLogs(podName string, logDir string, outputDir string) {
 	files, err := os.ReadDir(logDir)
 	if err != nil {
 		log.Fatal("Unexpected error. Failed to read directory ", logDir)
@@ -233,7 +233,7 @@ func (m *MetricManager) consolidateLogs(podName string, logDir string) {
 		}
 	}
 	// Consolidate current log and rotated log files and remove outdated lines of logs
-	logOutputPath := path.Join(logDir, fmt.Sprintf("knative-serving_%s.log", podName))
+	logOutputPath := path.Join(outputDir, fmt.Sprintf("knative-serving_%s.log", podName))
 	outputFile, err := os.Create(logOutputPath)
 	if err != nil {
 		log.Fatal("Failed to create output file: ", outputFile, err)
@@ -270,15 +270,19 @@ func (m *MetricManager) consolidateLogs(podName string, logDir string) {
 		log.Printf("Error processing log files: %v", err)
 	}
 	// Remove all other log files
-	files, err = os.ReadDir(logDir)
-	if err != nil {
-		log.Fatal("Failed to read directory: ", logDir, err)
-	}
-	for _, file := range files {
-		if file.Name() != fmt.Sprintf("knative-serving_%s.log", podName) {
-			err := os.RemoveAll(path.Join(logDir, file.Name()))
-			if err != nil {
-				log.Fatal("Error occured when removing log files", err)
+	if logDir != outputDir {
+		os.RemoveAll(logDir)
+	} else {
+		files, err = os.ReadDir(logDir)
+		if err != nil {
+			log.Fatal("Failed to read directory: ", logDir, err)
+		}
+		for _, file := range files {
+			if file.Name() != fmt.Sprintf("knative-serving_%s.log", podName) {
+				err := os.RemoveAll(path.Join(logDir, file.Name()))
+				if err != nil {
+					log.Fatal("Error occured when removing log files", err)
+				}
 			}
 		}
 	}
