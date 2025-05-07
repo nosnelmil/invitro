@@ -34,7 +34,7 @@ func CheckMultiLoaderConfig(multiLoaderConfig types.MultiLoaderConfiguration) {
 		}
 		// Check trace directory
 		// if configs does not have TracePath or OutputPathPreix, either TracesDir or (TracesFormat and TraceValues) should be defined along with OutputDir
-		if study.TracesDir == "" && (study.TracesFormat == "" || len(study.TraceValues) == 0) {
+		if study.TracesDir == "" && (study.TracesFormat == "" || len(study.TraceValues) == 0) && !IsConfigRPS(multiLoaderConfig) {
 			if _, ok := study.Config["TracePath"]; !ok {
 				log.Fatal("Missing one of TracesDir, TracesFormat & TraceValues, Config.TracePath in multi_loader_config ", study.Name)
 			}

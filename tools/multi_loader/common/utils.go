@@ -60,6 +60,21 @@ func DeterminePlatformFromConfig(multiLoaderConfig types.MultiLoaderConfiguratio
 	return strings.ToLower(loaderConfig.Platform)
 }
 
+func IsConfigRPS(multiLoaderConfig types.MultiLoaderConfiguration) bool {
+	// Determine platform
+	baseConfigByteValue, err := os.ReadFile(multiLoaderConfig.BaseConfigPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	var loaderConfig config.LoaderConfiguration
+	// Unmarshal base configuration
+	if err = json.Unmarshal(baseConfigByteValue, &loaderConfig); err != nil {
+		log.Fatal(err)
+	}
+	// transform platform to lowercase to match defined constant case
+	return strings.ToLower(loaderConfig.TracePath) == "rps"
+}
+
 /**
  * NextCProduct generates the next Cartesian product of the given limits
  **/
